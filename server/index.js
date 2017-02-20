@@ -11,6 +11,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
 
+require('./io')(io, app);
+
 server.listen(PORT, function() {
   console.log(`Express server is up on port ${server.address().port}.`);
 });

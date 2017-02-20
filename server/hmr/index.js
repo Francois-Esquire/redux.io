@@ -58,19 +58,24 @@ app.use(webpackHotMiddleware(webpackCompiler, {
   heartbeat: 1000
 }));
 
-app.use('/*', (req, res) => {
+app.use((req, res, next) => {
   const output = res.locals.webpackStats.toJson().assetsByChunkName;
 
-  const assets = {
+  res.assets = {
     vendor: output.vendor instanceof Array ? output.vendor.map(path => `<script src="${path}"></script>`).join('') : `<script src="${output.vendor}"></script>`,
     manifest: `<script src="${output.manifest}"></script>`,
     js: output.app.filter(path => path.endsWith('.js')).map(path => `<script src="${path}"></script>`),
     css: output.app.filter(path => path.endsWith('.css')).map(path => `<link rel="stylesheet" href="${path}" />`)
   };
 
+  return next();
+});
+
+app.use('/*', (req, res) => {
+  const assets = res.assets;
   const title = 'redux.io';
 
-  const html = `
+  res.status(200).send(`
 <!doctype html>
 <html lang="en">
   <head>
@@ -92,7 +97,5 @@ app.use('/*', (req, res) => {
     ${ assets.js }
   </body>
 </html>
-  `;
-
-  res.status(200).send(html);
+  `);
 });

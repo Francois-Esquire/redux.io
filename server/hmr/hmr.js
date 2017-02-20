@@ -11,27 +11,11 @@ import { routerReducer as routing, routerMiddleware, syncHistoryWithStore } from
 
 import { AppContainer } from 'react-hot-loader';
 
-import { createDevTools, persistState } from 'redux-devtools';
-import Dispatch from 'redux-devtools-dispatch';
-import LogMonitor from 'redux-devtools-log-monitor';
-import MultipleMonitors from 'redux-devtools-multiple-monitors';
-import DockMonitor from 'redux-devtools-dock-monitor';
-
 import './../../src/styles/index.css';
 import Root from './../../src/components/Root.jsx';
+import DevTools from './devtools.js';
 
 const logger = createLogger();
-
-const DevTools = createDevTools(
-  <DockMonitor toggleVisibilityKey='ctrl-h'
-    changePositionKey='ctrl-q'
-    defaultIsVisible={false}>
-    <MultipleMonitors>
-      <LogMonitor theme='tomorrow' />
-      <Dispatch />
-    </MultipleMonitors>
-  </DockMonitor>
-);
 
 function root (state = {}, action) {
   return state;
