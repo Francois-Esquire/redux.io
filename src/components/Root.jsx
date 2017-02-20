@@ -69,7 +69,7 @@ const Home = props => (<div>welcome home</div>);
 
 const Root = ({ store, history = browserHistory }) => (
   <Provider store={store}>
-    <Router history={history} routes={routes} createElement={(Component, props) => <Component {...props}/>}>
+    <Router history={history} createElement={(Component, props) => <Component {...props}/>}>
       <Route path="/" component={App}>
         <IndexRoute component={Home} />
         <Route path=":room" />

@@ -32,7 +32,7 @@ __webpack_require__(433);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var store = (0, _store2.default)(__INITIAL_STATE__, { history: _reactRouter.browserHistory });
+var store = (0, _store2.default)(undefined, { history: _reactRouter.browserHistory });
 
 var story = (0, _reactRouterRedux.syncHistoryWithStore)(_reactRouter.browserHistory, store);
 
@@ -180,7 +180,7 @@ var Root = function Root(_ref) {
     { store: store },
     _react2.default.createElement(
       _reactRouter.Router,
-      { history: history, routes: routes, createElement: function createElement(Component, props) {
+      { history: history, createElement: function createElement(Component, props) {
           return _react2.default.createElement(Component, props);
         } },
       _react2.default.createElement(

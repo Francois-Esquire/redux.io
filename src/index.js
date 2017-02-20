@@ -10,7 +10,7 @@ import Root from './components';
 import configStore from './store';
 import './styles/index.css';
 
-const store = configStore((__INITIAL_STATE__), { history });
+const store = configStore(undefined, { history });
 
 const story = syncHistoryWithStore(history, store);
 

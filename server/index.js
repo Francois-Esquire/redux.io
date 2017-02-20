@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('path');
 const http = require('http');
 const express = require('express');
 const socketio = require('socket.io');
@@ -18,8 +19,8 @@ app.use(require('body-parser').json());
 app.use(express.static(PUBLIC_PATH));
 
 app.use('/*', (req, res, next) => {
-  app.sendFile('index.html');
-}
+  res.sendFile(PUBLIC_PATH + '/index.html');
+});
 
 server.listen(PORT, function() {
   console.log(`Express server is up on port ${server.address().port}.`);

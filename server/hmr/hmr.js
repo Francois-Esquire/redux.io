@@ -48,10 +48,7 @@ const createEnhancedStore = compose(
 
 const reducers = combineReducers({ root, routing });
 
-const store = createEnhancedStore(
-  reducers,
-  __INITIAL_STATE__
-);
+const store = createEnhancedStore(reducers);
 
 const appElement = document.getElementById('app');
 
