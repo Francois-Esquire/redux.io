@@ -7,12 +7,16 @@
     "start": "node .",
     "build": "NODE_ENV=production webpack",
     "server": "node server/",
+    "server:hot": "node server/",
     "test": "mocha **/*.test.*",
     "test:app": "mocha  --compilers js:babel-core/register --require src/test/test.helper.js --recursive src/test/",
     "test-watch": "nodemon --exec 'npm test'"
   },
   "keywords": [
-    "socket.io"
+    "socket.io",
+    "io",
+    "redux",
+    "react"
   ],
   "author": "Michael Tobia",
   "license": "MIT",
@@ -45,7 +49,7 @@
     "expect": "^1.20.2",
     "extract-text-webpack-plugin": "^2.0.0-rc.0",
     "file-loader": "^0.9.0",
-    "html-webpack-plugin": "^2.26.0",
+    "html-webpack-plugin": "^2.28.0",
     "jquery": "^3.1.1",
     "jsdom": "^9.10.0",
     "json-loader": "^0.5.4",
