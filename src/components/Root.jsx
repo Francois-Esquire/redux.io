@@ -65,13 +65,16 @@ const App = connect(
   }, { pure: true, withRef: false }
 )(Application);
 
-const Home = props => (<div>welcome home</div>);
+const Dashboard = props => {
+  const {  } = props;
+  return (<div>welcome home</div>);
+};
 
 const Root = ({ store, history = browserHistory }) => (
   <Provider store={store}>
     <Router history={history} createElement={(Component, props) => <Component {...props}/>}>
       <Route path="/" component={App}>
-        <IndexRoute component={Home} />
+        <IndexRoute component={Dashboard} />
         <Route path=":room" />
       </Route>
     </Router>

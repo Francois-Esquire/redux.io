@@ -7,7 +7,7 @@
     "start": "node .",
     "build": "NODE_ENV=production webpack",
     "server": "node server/",
-    "server:hot": "node server/",
+    "server:hot": "node server/hmr",
     "test": "mocha **/*.test.*",
     "test:app": "mocha  --compilers js:babel-core/register --require src/test/test.helper.js --recursive src/test/",
     "test-watch": "nodemon --exec 'npm test'"

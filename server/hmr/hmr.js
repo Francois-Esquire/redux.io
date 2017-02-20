@@ -72,10 +72,10 @@ if (module.hot) {
     render(nextRoot, store, story);
   });
 
-  //   module.hot.accept('./../../src/store/reducers/index.js', id => {
-  //     const nextRootReducer = require('./../../src/store/reducers/index.js').default;
-  //     store.replaceReducer(combineReducers({ ...nextRootReducer, routing }));
-  //   });
+  // module.hot.accept('./../../src/store/reducers/index.js', id => {
+  //   const nextRootReducer = require('./../../src/store/reducers/index.js').default;
+  //   store.replaceReducer(combineReducers({ ...nextRootReducer, routing }));
+  // });
 }
 
 render(Root, store, story);

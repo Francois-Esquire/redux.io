@@ -69,12 +69,12 @@ module.exports = {
   },
   plugins: [
     extractCSS,
+    // new HtmlWebpackPlugin({
+    //   title: 'redux.io'
+    // }),
     new webpack.optimize.CommonsChunkPlugin({
       names: ['vendor', 'manifest'],
       filename: '[name].[hash].js',
-    }),
-    new HtmlWebpackPlugin({
-      title: 'redux.io'
     })
   ]
 };
