@@ -5,7 +5,18 @@ module.exports = function IO (io, app) {
     const { id, request, conn, client, rooms } = socket;
 
     socket.on('message', (message, fn = () => undefined) => {
-      console.log('Client has sent a message: ', message);
+      const { type, name, action, data } = JSON.parse(message);
+      console.log(`Client has sent a message.\n type : ${
+        type
+      },\n name : ${
+        name
+      },\n action : ${
+        action
+      },\n data: ${
+        data
+      }.`);
+
+      fn(JSON.stringify({ message: 'message received' }));
     });
 
     return next();

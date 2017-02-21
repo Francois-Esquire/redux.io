@@ -6,6 +6,9 @@ import { push, replace, go, goForward, goBack } from 'react-router-redux';
 import { connect, Provider } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { ACTIONS } from './../redux.io';
+import DashBoard from './DashBoard';
+
 class Application extends PureComponent {
   constructor (props) {
     super(props);
@@ -15,7 +18,8 @@ class Application extends PureComponent {
 
   render () {
     const { props, state } = this;
-    const { children, grandChildren = children.props.children } = props;
+    const { dispatch, socket, children } = props;
+    const grandChildren = children.props.children;
 
     return (<main id="main" role="main" ref={m => m ? this.main = m : null}>
       <header className="navigator" id="nav">
@@ -23,7 +27,7 @@ class Application extends PureComponent {
       </header>
       <section className="main-content">{
         children ? React.cloneElement(props.children, {
-
+          socket
         }) : null
       }</section>
       <footer>
@@ -53,9 +57,10 @@ const App = connect(
   },
   function mapDispatchToProps (dispatch) {
     return {
-      router: bindActionCreators({
+      dispatch, routing: bindActionCreators({
          push, replace, go, goForward, goBack
-      }, dispatch)
+      }, dispatch),
+      socket: bindActionCreators({ ...ACTIONS }, dispatch)
     };
   },
   function mergeProps (stateProps, dispatchers) {
@@ -65,16 +70,11 @@ const App = connect(
   }, { pure: true, withRef: false }
 )(Application);
 
-const Dashboard = props => {
-  const {  } = props;
-  return (<div>welcome home</div>);
-};
-
 const Root = ({ store, history = browserHistory }) => (
   <Provider store={store}>
     <Router history={history} createElement={(Component, props) => <Component {...props}/>}>
       <Route path="/" component={App}>
-        <IndexRoute component={Dashboard} />
+        <IndexRoute component={DashBoard} />
         <Route path=":room" />
       </Route>
     </Router>

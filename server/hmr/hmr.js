@@ -13,13 +13,10 @@ import { AppContainer } from 'react-hot-loader';
 
 import './../../src/styles/index.css';
 import Root from './../../src/components/Root.jsx';
+import redux_io from './../../src/redux.io';
 import DevTools from './devtools.js';
 
 const logger = createLogger();
-
-function root (state = {}, action) {
-  return state;
-}
 
 const createEnhancedStore = compose(
   applyMiddleware(
@@ -30,7 +27,7 @@ const createEnhancedStore = compose(
   DevTools.instrument()
 )(createStore);
 
-const reducers = combineReducers({ root, routing });
+const reducers = combineReducers({ socket: redux_io(io), routing });
 
 const store = createEnhancedStore(reducers);
 
@@ -56,10 +53,11 @@ if (module.hot) {
     render(nextRoot, store, story);
   });
 
-  // module.hot.accept('./../../src/store/reducers/index.js', id => {
-  //   const nextRootReducer = require('./../../src/store/reducers/index.js').default;
-  //   store.replaceReducer(combineReducers({ ...nextRootReducer, routing }));
-  // });
+  module.hot.accept('./../../src/redux.io/io', () => {
+    const nextIO = require('./../../src/redux.io/io').default;
+    const reducers = combineReducers({ socket: nextIO(io), routing });
+    store.replaceReducer(reducers);
+  });
 }
 
 render(Root, store, story);
