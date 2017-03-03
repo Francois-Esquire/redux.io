@@ -1,6 +1,6 @@
 {
   "name": "redux.io",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A stateful bridge with an effort to preserve io.",
   "main": "index.js",
   "scripts": {

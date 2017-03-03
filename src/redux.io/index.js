@@ -1,27 +1,27 @@
 'use strict';
 
-import { bindActionCreators } from 'redux';
-
 const CONSTANTS = [
-  'IO.INITIALIZE',
-  'IO.TIMEOUT',
-  'IO.ERROR',
-  'IO.EVENT',
-  'IO.MESSAGE',
-  'IO.EMIT',
-  'IO.SEND',
-  'IO.RECONNECTING',
-  'IO.ACKNOWLEDGED',
-  'IO.INITIALIZED',
-  'IO.CONNECTED',
-  'IO.OPENED',
-  'IO.CLOSED',
-  'IO.RECONNECTED',
-  'IO.RECONNECT_FAILED',
-  'IO.RECONNECT_ATTEMPT',
-  'IO.DISCONNECTED',
-  'IO.DESTROYED'
+  '@@io/INIT',
+  '@@io/INITIALIZE',
+  '@@io/TIMEOUT',
+  '@@io/ERROR',
+  '@@io/EVENT',
+  '@@io/MESSAGE',
+  '@@io/EMIT',
+  '@@io/SEND',
+  '@@io/RECONNECTING',
+  '@@io/ACKNOWLEDGED',
+  '@@io/INITIALIZED',
+  '@@io/CONNECTED',
+  '@@io/OPENED',
+  '@@io/CLOSED',
+  '@@io/RECONNECTED',
+  '@@io/RECONNECT.FAILED',
+  '@@io/RECONNECT.ATTEMPT',
+  '@@io/DISCONNECTED',
+  '@@io/DESTROYED'
 ],[
+  INIT,
   INITIALIZE,
   TIMEOUT,
   ERROR,
@@ -67,10 +67,16 @@ function CREATE_SOCKET_ACTION (url, options, callback = () => undefined) {
     return dispatcher(INITIALIZED, {
       actions: {
         send (data, fn) {
-          return dispatch(dispatch => socket.send(JSON.stringify(data), acknowledge(fn, 'message', dispatch)));
+          return dispatch(dispatch => {
+            socket.send(JSON.stringify(data), acknowledge(fn, 'message', data));
+            return dispatcher(SEND, { payload:{ data, callback: fn, event: 'message' }});
+          });
         },
         emit (event, data, fn) {
-          return dispatch(dispatch => socket.emit(event, JSON.stringify(data), acknowledge(fn, event, dispatch)));
+          return dispatch(dispatch => {
+            socket.emit(event, JSON.stringify(data), acknowledge(fn, event, data));
+            return dispatcher(EMIT, { payload:{ data, callback: fn, event }});
+          });
         },
         open() { return socket.open(); },
         close() { return socket.close(); },
@@ -83,15 +89,28 @@ function CREATE_SOCKET_ACTION (url, options, callback = () => undefined) {
       const { connected, disconnected, id = null, nsp: ns } = socket;
       return dispatch({ type, ns, socket: {connected, disconnected, id, socket}, ...o });
     }
-    function acknowledge (fn = data => console.log(data), event, dispatch) {
+    function acknowledge (fn = data => console.log(data), event) {
       return message => {
-        const data = JSON.parse(message);
-        dispatcher(ACKNOWLEDGED, { event });
-        return fn(data);
+        const _data = JSON.parse(message);
+        dispatcher(ACKNOWLEDGED, { event, data: _data });
+        return fn(_data);
       }
     }
   };
 }
+
+const defaults = {
+  transports: ['websocket'],
+  reconnection: true,
+  reconnectionAttempts: Math.Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  randomizationFactor: 0.5,
+  timeout: 20000,
+  autoConnect: true
+};
+
+export CONSTANTS;
 
 export const ACTIONS = {
   connect: CREATE_SOCKET_ACTION

@@ -18,4 +18,10 @@ export default function configureStore(state, { history, middleware = {} }) {
   return createEnhancedStore(
     reducers, state
   );
+  // return compose(nextStore => {
+  //   const { reducer, middleware } = require('./io')(io);
+  //   return nextStore;
+  // })(createEnhancedStore(
+  //   reducers, state
+  // ));
 }
