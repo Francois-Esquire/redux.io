@@ -1,7 +1,14 @@
 # redux.io
-## Redux binding for Socket.io
+
+Redux binding for Socket.io
 
 Currently in development.
+
+## Installation
+
+```bash
+npm install redux.io
+```
 
 ### Basic Usage:
 
