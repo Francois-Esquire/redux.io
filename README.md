@@ -2,8 +2,6 @@
 
 Redux binding for Socket.io
 
-Currently in development - documentation and examples are inaccurate.
-
 ### Installation
 
 ```bash
@@ -12,16 +10,25 @@ npm install redux.io --save
 
 ## Usage Example:
 
-#### Integrating with your store.
+### Integrating with your app.
 
-store.js:
+/index.js
 ```javascript
+import React from 'react';
+import ReactDOM from 'react-dom';
+import {
+  Provider,
+  connect
+} from 'react-redux';
 import {
   createStore,
   combineReducers,
   applyMiddleware,
+  bindActionCreators
 } from 'redux';
-import reduxIO from 'redux.io';
+
+//
+import reduxIO, { connect as connectSocket } from 'redux.io';
 
 // if you're bundling the client:
 import io from 'socket.io-client';
@@ -41,105 +48,121 @@ const middleware = applyMiddleware(
 );
 
 const store = createStore(reducers, middleware);
+
+const RealTimeMessenger = connect(
+  (state, ownProps) => Object.assign({}, state, ownProps),
+  dispatch => bindActionCreators({
+    // bind dispatch to the connectSocket
+    connect: connectSocket,
+  }, dispatch)
+)(..Application);
+
+ReactDOM.render(<Provider store={store}>
+  <RealTimeMessenger />
+</Provider>, document.getElementById('root'));
 ```
 
 #### Consumption using React.
 
-app.js
+/components/app.js
 ```javascript
 import React from 'react';
-import ReactDOM from 'react-dom';
-import { Provider, connect } from 'react-redux';
 
-import store from './dudeWhereIsMyStore?';
-
-class Messenger extends React.Component {
+export default class Application extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {
-      messages: [],
-      typing: [],
-      content: '',
-      whoami: '',
-      handle: false,
-      connected: false
-    };
-    this.onTyping = this.onTyping.bind(this);
-    this.onSubmit = this.onSubmit.bind(this);
-    this.onChange = this.onChange.bind(this);
+
+    this.state = {...};
+
+    props.connect('/chat', { autoconnect: false });
   }
-  componentWillMount() {
-    this.socket = this.props.socket.connect('/messenger');
-    this.socket
-      .on('connect', (dispatch, socket) => this.setState({ connected: true }))
-      .on('newMessage', (dispatch, socket, data) => this.setState(state => ({
-        messages: state.messages.concat(data.message)
-      })))
-      .on('isTyping', (dispatch, socket, data) => {
-        const { typing, whoami } = data;
-        if (this.state.typing.indexOf(whoami) >= 0) {
-          if (!typing) return this.setState(state => ({
-            typing: state.typing.filter(who => who !== whoami)
-          }));
-        }
-        else if (typing) return this.setState(state => ({
-          typing: state.typing.concat(whoami)
+  componentWillUnmount() { this.props.socket['/chat'].close(); }
+  componentWillReceiveProps(Props) {
+    if (Props.channel !== this.props.channel) {
+      this.setState({ channel: Props.channel },
+        () => sock.emit('channel:change',
+        Props.channel,
+        this.props.channel,
+        this.state.whoami));
+    }
+  }
+  componentWillUpdate(Props, State) {
+    const { whoami, handle } = State;
+    if (whoami && handle) Props.socket.open('/chat');
+    else Props.socket.close('/chat');
+  }
+  componentDidMount() {
+    const { socket, channel } = this.props;
+
+    // once connect is called, a socket connection is available on the socket object
+    // you can access the socket abstraction by selecting it by its namespace
+    socket['/chat'].on('connect', (dispatch, sock) => {
+      // in the occurrence of an event, the callback will contain:
+      // dispatch, the socket abstraction and any data passed to the event.
+
+      // when emitting or sending messages, it carries the same usage behavior as expected.
+      sock.emit('channel', channel);
+      this.setState({ connected: true });
+    });
+
+    socket['/chat'].on('disconnect', (dispatch, sock) =>
+      this.setState({ connected: false }));
+
+    // alternatively, you can interface with your socket connection using the top level helpers.
+    // The only addition is the namespace as the first argument.
+    socket.on('/chat', 'channel:join',
+      (d, s, whoami) => this.setState(
+        state => ({ party: state.party.concat(whoami) })));
+
+    socket.on('/chat', 'channel:leave',
+      (d, s, whoami) => this.setState(
+        state => ({ party: state.party.filter(m => m !== whoami) })));
+
+    socket.on('/chat', 'message:new',
+      (d, s, ({ message })) => this.setState(
+        state => ({ messages: state.messages.concat(data.message) })));
+
+    socket.on('/chat', 'typing', (dispatch, sock, data) => {
+      const { typing, whoami } = data;
+      if (this.state.typing.indexOf(whoami) >= 0) {
+        if (!typing) return this.setState(state => ({
+          typing: state.typing.filter(who => who !== whoami)
         }));
-      });
+      }
+      else if (typing) return this.setState(state => ({
+        typing: state.typing.concat(whoami)
+      }));
+    });
   }
-  componentWillUnmount() {
-    this.props.socket['/messenger'].close();
+  sendMessage() {
+    const { content, whoami, channel } = this.state;
+    this.props.socket.emit('/chat', 'message:send',
+      { whoami, content, channel }, (dispatch, sock, data) => {
+      // by socket.io convention, acknowledgements (acks) are passed a function
+      // as the last parameter to an emit/send call.
+      // acks, just like events, are considered the same and passed the same arguments.
+
+      return this.setState(
+        state => ({ messages: state.messages.concat(data.message) }));
+    });
   }
   onTyping(typing) {
-    this.socket.emit('isTyping', { typing, whoami: this.state.whoami });
+    this.props.socket['/chat'].emit('typing:state', typing, this.state.whoami);
   }
   onSubmit(event) {
     event.preventDefault();
     switch (event.target.id) {
-      default: this.socket.emit('sendMessage', { content: this.state.content });
-      case: 'identity': return this.setState({ handle: true });
+      default: this.sendMessage();
+      case: 'identity': return this.setState({ handle: true },
+        () => localStorage && localStorage.setItem('whoami', this.state.whoami));
     }
   }
-  onChange(event) { return this.setState({ [event.target.id]: event.target.value }); }
   render() {
-    const { whoami, handle, content, messages, typing } = this.state;
-
-    return whoami && handle ? (<div>
-      <ul>{messages.map(msg => (
-        <li key={msg.id}>{msg.content}</li>
-      ))}</ul>
-      <p>Typing: {typing.join(', ') || 'no one.'}</p>
-      <form id="message" onSubmit={this.onSubmit}>
-        <textarea
-          id="content"
-          value={content}
-          onBlur={event => this.onTyping(false)}
-          onFocus={event => this.onTyping(true)}
-          onChange={this.onChange} />
-        <button type="submit">Send</button>
-      </form>
-    </div>) : (<div>
-      <h1>Hey there!</h1>
-      <p>To start, please provide a handle to start chatting.</p>
-      <form id="identity" onSubmit={this.onSubmit}>
-        <input
-          id="whoami"
-          type="text"
-          value={handle}
-          onChange={this.onChange} />
-        <button type="submit">Send</button>
-      </form>
-    </div>);
+    return (<div>{ ... }</div>);
   }
 }
-
-const RealTimeMessengerApp = connect(state => state)(Messenger);
-
-ReactDOM.render(<Provider store={store}>
-  <RealTimeMessengerApp />
-</Provider>, document.getElementById('root'));
-
 ```
+The full example can be found within /app-starter.
 
 ## API:
 
@@ -147,13 +170,17 @@ No assumptions are made about how socket.io is delivered to the client.
 The only requirement is to pass socket.io to the redux.io constructor as the first parameter. The optional extensions parameter is reserved for future implementation.
 
 ```javascript
-import reduxIO from 'redux.io';
+import reduxIO, { connect as connectSocket } from 'redux.io';
 
 const socket = reduxIO(io [, extensions]);
 
 const reducer = socket.reducer;
 const middleware = socket.middleware;
+
+const connectIO = (url [, options]) => dispatch(connectSocket(url, options));
 ```
+
+The complete options list can be found [here.](https://github.com/socketio/socket.io-client/blob/master/docs/API.md#new-managerurl-options)
 
 #### Socket Anatomy
 
@@ -163,6 +190,8 @@ const socket = state.socket;
 ```
 
 If you ever need direct access to the socket.io global:
+it's worthwhile to explore the socket.io library if you're new to it.
+[check it out.](https://github.com/socketio/socket.io-client/blob/master/docs/API.md)
 
 ```javascript
 const io = socket.io;
@@ -175,21 +204,28 @@ home.open();
 ```
 
 ```javascript
-const {
-  connect,
-  disconnect,
-  send,
-  emit,
-  on,
-} = socket;
-
 // with a given namespace that you connect to, you can interface with the socket:
 // socket.namespaces contains the socket instance returned by io.connect().
 const sock = socket.namespaces[ns];
+
+// the remaining properties are top layer methods to perform on your namespaced connections.
+// the first parameter for each of theses methods is the namespace = '/chat' || '/' - default.
+const {
+  connect,
+  disconnect,
+  destroy,
+  send,
+  emit,
+  on,
+  once,
+  off,
+} = socket;
 ```
 
 #### Socket Abstraction
-Whenever you connect
+Whenever you connect to a namespace, an abstraction is created to drive home the core utility of the socket.
+All the calls are intercepted by the middleware, where it operates on the actual socket.io Socket instance.
+
 ```javascript
 const abstraction = socket[ns];
 const {
@@ -205,7 +241,7 @@ const {
 } = abstraction;
 ```
 
-Both events and acknowledgement callbacks come with dispatch, the socket abstraction and the data associated with the invocation.
+Both events and acknowledgement callbacks come with dispatch, the socket abstraction and the respective data passed with the invocation.
 
 ```javascript
 socket['/namespace'].send('a message for my peeps',

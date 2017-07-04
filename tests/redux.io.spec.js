@@ -71,14 +71,13 @@ test.before('Client Setup', () => {
     store.dispatch(connect(ns, opts));
 });
 
-// test(t => {
-//   const defs = Object.keys(DEFS);
-//   const keys = Object.keys(CONSTANTS).map(
-//     k => CONSTANTS.indexOf(k.replace(/_/, '.')) >= 0
-//   );
-//
-//   t.pass();
-// });
+test('connect action', t => {
+  t.deepEqual(connect(socketURL), {
+    type: CONSTANTS[0],
+    ns: socketURL,
+    options: undefined,
+  });
+});
 
 test.cb('socket:connect', t => {
 
