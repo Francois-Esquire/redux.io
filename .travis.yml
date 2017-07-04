@@ -3,8 +3,9 @@ language: node_js
 node_js:
   - "7.7"
 
-before_script:
+install:
   - npm install -g ava --save
+  - npm install
 
 cache:
   directories:
