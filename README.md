@@ -2,25 +2,25 @@
 
 Redux binding for Socket.io
 
-Currently in development.
+Currently in development - documentation and examples are inaccurate.
 
-## Installation
+### Installation
 
 ```bash
-npm install redux.io
+npm install redux.io --save
 ```
 
 ### Basic Usage:
 
 Set it up with your store however you like:
 
+store.js:
 ```javascript
 import { createStore, combineReducers, applyMiddleware } from 'redux';
 import reduxIO from 'redux.io';
 
 // if you're bundling the client:
 import io from 'socket.io-client';
-
 // or if you're having the file served:
 const io = window.io;
 
@@ -31,7 +31,7 @@ const reducers = combineReducers({
 });
 
 const middleware = applyMiddleware(
-  socket.middleware, ...(thunk, logger, etc)
+  socket.middleware, ...(thunk, etc)
 );
 
 const store = createStore(reducers, middleware);
@@ -40,39 +40,54 @@ const store = createStore(reducers, middleware);
 ### API:
 
 No assumptions are made about how socket.io is delivered to the client.
-The only requirement is to pass socket.io to the redux.io constructor as the first parameter. The optional extensions parameter is a reservation for future implementation.
+The only requirement is to pass socket.io to the redux.io constructor as the first parameter. The optional extensions parameter is reserved for future implementation.
 
 ```javascript
 import reduxIO from 'redux.io';
 
 const socket = reduxIO(io [, extensions]);
+
 const reducer = socket.reducer;
 const middleware = socket.middleware;
 ```
 
-This is the composition of the socket branch within your store state.
+#### Socket Anatomy
 
 ```javascript
 const state = store.getState();
 const socket = state.socket;
+```
 
-// if you ever want direct access to the socket.io object,
+If you ever need direct access to the socket.io global:
+
+```javascript
 const io = socket.io;
 
+// use as you normally would:
+// note - this eclipses any association with the store.
+
+const home = io.connect('/', { autoConnect: false });
+home.open();
+```
+
+```javascript
 const {
-  open,
-  close,
   connect,
   disconnect,
   send,
   emit,
+  on,
 } = socket;
 
 // with a given namespace that you connect to, you can interface with the socket:
 // socket.namespaces contains the socket instance returned by io.connect().
 const sock = socket.namespaces[ns];
-const abstraction = socket[ns];
+```
 
+#### Socket Abstraction
+Whenever you connect
+```javascript
+const abstraction = socket[ns];
 const {
   open,
   close,
@@ -89,7 +104,10 @@ Both events and acknowledgement callbacks come with dispatch, the socket abstrac
 socket['/namespace'].on('event',
   function (dispatch, socket, ...data) {...});
 
-socket['/namespace'].emit('new message', 'wassup',
+socket['/namespace'].emit('message:new', 'wassup',
+  function (dispatch, socket, ...data) {...});
+
+socket['/namespace'].send('a message for my peeps', ['with', 'data'], 'or', 011001,
   function (dispatch, socket, ...data) {...});
 ```
 
@@ -112,7 +130,8 @@ class Messenger extends React.Component {
       typing: [],
       content: '',
       whoami: '',
-      handle: true
+      handle: false,
+      connected: false
     };
     this.onTyping = this.onTyping.bind(this);
     this.onSubmit = this.onSubmit.bind(this);
@@ -121,10 +140,11 @@ class Messenger extends React.Component {
   componentWillMount() {
     this.socket = this.props.socket.connect('/messenger');
     this.socket
-      .on('newMessage', data => this.setState(state => ({
+      .on('connect', (dispatch, socket) => this.setState({ connected: true }))
+      .on('newMessage', (dispatch, socket, data) => this.setState(state => ({
         messages: state.messages.concat(data.message)
       })))
-      .on('isTyping', data => {
+      .on('isTyping', (dispatch, socket, data) => {
         const { typing, whoami } = data;
         if (this.state.typing.indexOf(whoami) >= 0) {
           if (!typing) return this.setState(state => ({

@@ -77,6 +77,8 @@ test.before('Client Setup', () => {
     applyMiddleware(logger, socket.middleware)
   );
 
+  // console.log(store.getState().socket);
+
   connect = (ns, opts) =>
     store.dispatch({ type: CONSTANTS[0], ns, options: opts || {} });
 });
@@ -90,11 +92,13 @@ test.before('Client Setup', () => {
 //   t.pass();
 // });
 
-test.cb('socket connection', t => {
+test.cb('socket:connect', t => {
+
   connect(socketURL);
 
   const socket = store.getState().socket;
-
+  // console.log(socket);
+  // console.log('hasListeners: ',socket.namespaces[socketURL].hasListeners());
   socket[socketURL].on('connect', () => {
     socket[socketURL].send([], () => t.end());
     socket[socketURL].send([{ new: 'data' }], (dispatch, data) => t.end());
@@ -108,13 +112,11 @@ test.cb('socket listening', t => {
   socket[socketURL].emit('hey', 'wassup');
 
   socket[socketURL].on('hey', function (dispatch, socket, hey, there) {
-    console.log(arguments);
-    console.log('hey fired, ', hey, there);
     return t.end();
   });
 });
 
-test.after.cb('socket disconnect', t => {
+test.after.cb('socket:disconnect', t => {
   const socket = store.getState().socket;
 
   socket[socketURL].on('disconnect', () => {
@@ -123,4 +125,12 @@ test.after.cb('socket disconnect', t => {
   });
 
   socket[socketURL].close();
+});
+
+test.after('socket:destroy', t => {
+  const socket = store.getState().socket;
+
+  socket[socketURL].destroy();
+
+  // console.log(socket.io.managers[socketURL]);
 });
