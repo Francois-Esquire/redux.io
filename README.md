@@ -10,13 +10,17 @@ Currently in development - documentation and examples are inaccurate.
 npm install redux.io --save
 ```
 
-### Basic Usage:
+## Usage Example:
 
-Set it up with your store however you like:
+#### Integrating with your store.
 
 store.js:
 ```javascript
-import { createStore, combineReducers, applyMiddleware } from 'redux';
+import {
+  createStore,
+  combineReducers,
+  applyMiddleware,
+} from 'redux';
 import reduxIO from 'redux.io';
 
 // if you're bundling the client:
@@ -27,94 +31,21 @@ const io = window.io;
 const socket = reduxIO(io);
 
 const reducers = combineReducers({
-  ...yourOtherReducers, socket: socket.reducer
+  ...yourOtherReducers,
+  socket: socket.reducer,
 });
 
 const middleware = applyMiddleware(
-  socket.middleware, ...(thunk, etc)
+  socket.middleware,
+  ...(thunk, etc)
 );
 
 const store = createStore(reducers, middleware);
 ```
 
-### API:
+#### Consumption using React.
 
-No assumptions are made about how socket.io is delivered to the client.
-The only requirement is to pass socket.io to the redux.io constructor as the first parameter. The optional extensions parameter is reserved for future implementation.
-
-```javascript
-import reduxIO from 'redux.io';
-
-const socket = reduxIO(io [, extensions]);
-
-const reducer = socket.reducer;
-const middleware = socket.middleware;
-```
-
-#### Socket Anatomy
-
-```javascript
-const state = store.getState();
-const socket = state.socket;
-```
-
-If you ever need direct access to the socket.io global:
-
-```javascript
-const io = socket.io;
-
-// use as you normally would:
-// note - this eclipses any association with the store.
-
-const home = io.connect('/', { autoConnect: false });
-home.open();
-```
-
-```javascript
-const {
-  connect,
-  disconnect,
-  send,
-  emit,
-  on,
-} = socket;
-
-// with a given namespace that you connect to, you can interface with the socket:
-// socket.namespaces contains the socket instance returned by io.connect().
-const sock = socket.namespaces[ns];
-```
-
-#### Socket Abstraction
-Whenever you connect
-```javascript
-const abstraction = socket[ns];
-const {
-  open,
-  close,
-  destroy,
-  send,
-  emit,
-  on,
-} = abstraction;
-```
-
-Both events and acknowledgement callbacks come with dispatch, the socket abstraction and the data associated with the invocation.
-
-```javascript
-socket['/namespace'].on('event',
-  function (dispatch, socket, ...data) {...});
-
-socket['/namespace'].emit('message:new', 'wassup',
-  function (dispatch, socket, ...data) {...});
-
-socket['/namespace'].send('a message for my peeps', ['with', 'data'], 'or', 011001,
-  function (dispatch, socket, ...data) {...});
-```
-
-### Example
-
-Usage with a connected React component is straightforward:
-
+app.js
 ```javascript
 import React from 'react';
 import ReactDOM from 'react-dom';
@@ -208,6 +139,95 @@ ReactDOM.render(<Provider store={store}>
   <RealTimeMessengerApp />
 </Provider>, document.getElementById('root'));
 
+```
+
+## API:
+
+No assumptions are made about how socket.io is delivered to the client.
+The only requirement is to pass socket.io to the redux.io constructor as the first parameter. The optional extensions parameter is reserved for future implementation.
+
+```javascript
+import reduxIO from 'redux.io';
+
+const socket = reduxIO(io [, extensions]);
+
+const reducer = socket.reducer;
+const middleware = socket.middleware;
+```
+
+#### Socket Anatomy
+
+```javascript
+const state = store.getState();
+const socket = state.socket;
+```
+
+If you ever need direct access to the socket.io global:
+
+```javascript
+const io = socket.io;
+
+// use as you normally would:
+// note - this eclipses any association with the store.
+
+const home = io.connect('/', { autoConnect: false });
+home.open();
+```
+
+```javascript
+const {
+  connect,
+  disconnect,
+  send,
+  emit,
+  on,
+} = socket;
+
+// with a given namespace that you connect to, you can interface with the socket:
+// socket.namespaces contains the socket instance returned by io.connect().
+const sock = socket.namespaces[ns];
+```
+
+#### Socket Abstraction
+Whenever you connect
+```javascript
+const abstraction = socket[ns];
+const {
+  id,
+  open,
+  close,
+  destroy,
+  send,
+  emit,
+  on,
+  once,
+  off,
+} = abstraction;
+```
+
+Both events and acknowledgement callbacks come with dispatch, the socket abstraction and the data associated with the invocation.
+
+```javascript
+socket['/namespace'].send('a message for my peeps',
+  ['with', props.message, 'or'], 011001,
+  function (dispatch, socket, ...data) {...});
+
+socket['/namespace'].emit('message:new', 'wassup',
+  function (dispatch, socket, ...data) {...});
+
+socket['/namespace'].on('event',
+  function (dispatch, socket, ...data) {...});
+
+socket['/namespace'].once('connect',
+  function (dispatch, socket) {
+    return socket['/namespace'].emit('authentication', session.token);
+  });
+```
+
+Conversely, you can detach listeners.
+
+```javascript
+socket['/namespace'].off('same.event', fn);
 ```
 
 ### History:

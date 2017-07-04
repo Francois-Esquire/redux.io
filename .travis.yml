@@ -4,7 +4,8 @@ node_js:
   - "7.7"
 
 before_script:
-  - npm install -g ava
+  - npm install -g ava --save
+
 cache:
   directories:
     - "node_modules"
