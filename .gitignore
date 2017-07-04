@@ -1,3 +1,6 @@
+app/node_modules/
 node_modules/
+snippets/
+app/
+*.log
 .DS-store
-npm-debug.log
