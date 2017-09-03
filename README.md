@@ -27,15 +27,22 @@ import {
   bindActionCreators
 } from 'redux';
 
-//
-import reduxIO, { connect as connectSocket } from 'redux.io';
-
-// if you're bundling the client:
+// if you're bundling to the client:
 import io from 'socket.io-client';
 // or if you're having the file served:
 const io = window.io;
 
-const socket = reduxIO(io);
+// comes with a constructor and an action creator made for dispatching your connections.
+import reduxIo, { connect as connectIo } from 'redux.io';
+// or
+const { default: reduxIo, connect: connectIo } = require('redux.io');
+
+/**
+  This is where the magic happens.
+  @param {Constructor} io The middleware chain to be applied.
+  @returns {Object} A pair of properties: the middleware and the reducer.
+ */
+const socket = reduxIo(io);
 
 const reducers = combineReducers({
   ...yourOtherReducers,
@@ -53,7 +60,8 @@ const RealTimeMessenger = connect(
   (state, ownProps) => Object.assign({}, state, ownProps),
   dispatch => bindActionCreators({
     // bind dispatch to the connectSocket
-    connect: connectSocket,
+    // this is what initiates any and every connection that passes through the store.
+    connect: connectIo,
   }, dispatch)
 )(..Application);
 
@@ -244,17 +252,17 @@ const {
 Both events and acknowledgement callbacks come with dispatch, the socket abstraction and the respective data passed with the invocation.
 
 ```javascript
-socket['/namespace'].send('a message for my peeps',
+socket['/notifications'].send('a shoutout for my peeps',
   ['with', props.message, 'or'], 011001,
   function (dispatch, socket, ...data) {...});
 
-socket['/namespace'].emit('message:new', 'wassup',
+socket['/chat'].emit('message:new', 'wassup',
   function (dispatch, socket, ...data) {...});
 
 socket['/namespace'].on('event',
   function (dispatch, socket, ...data) {...});
 
-socket['/namespace'].once('connect',
+socket['/'].once('connect',
   function (dispatch, socket) {
     return socket['/namespace'].emit('authentication', session.token);
   });
@@ -265,6 +273,6 @@ Conversely, you can detach listeners.
 ```javascript
 socket['/namespace'].off('same.event', fn);
 ```
-
+** API is subject to change if there's a better fit.
 ### History:
 0.1.0 - Initial Implementation.
