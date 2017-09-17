@@ -11,11 +11,11 @@ const plugins = [
 ];
 
 const resolve = {
-  modules: ['node_modules', path.resolve(__dirname, 'node_modules')],
+  modules: [path.resolve(__dirname, 'node_modules'), 'node_modules'],
   descriptionFiles: ['package.json'],
   extensions: ['*', '.js', '.jsx'],
   alias: {
-    'redux.io': path.resolve(__dirname, 'client/redux.io.es.js'),
+    'redux.io': path.resolve(__dirname, 'redux.io.es.js'),
   },
 };
 
@@ -65,11 +65,6 @@ module.exports = {
             modules: false,
           }]],
           plugins: [
-            'minify-simplify',
-            'minify-dead-code-elimination',
-            'transform-simplify-comparison-operators',
-            'transform-undefined-to-void',
-            'transform-minify-booleans',
             'check-es2015-constants',
             'transform-es2015-classes',
             'transform-es2015-duplicate-keys',

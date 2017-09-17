@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "description": "redux.io bitcoin ticker",
   "main": "index.js",
-  "browser": "client/index.js",
+  "module": "client/index.js",
   "scripts": {
     "build": "NODE_ENV=production webpack",
     "start": "node index.js",
