@@ -1,5 +1,6 @@
 {
   "name": "bitmap",
+  "private": true,
   "version": "0.1.2",
   "description": "redux.io bitcoin ticker",
   "main": "index.js",

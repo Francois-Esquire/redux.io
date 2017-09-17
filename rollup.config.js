@@ -7,7 +7,7 @@ export default {
   output: [
     { file: pkg.browser, format: 'umd', exports: 'auto', name: 'redux.io' },
     { file: pkg.main, format: 'cjs' },
-    { file: 'redux.io.messenger/client/redux.io.es.js', format: 'es' }],
+    { file: 'bitmap/redux.io.es.js', format: 'es' }],
   external: Object.keys(pkg.peerDependencies).concat(Object.keys(pkg.dependencies)),
   plugins: [
     buble({

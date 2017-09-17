@@ -9,6 +9,9 @@
     "type": "git",
     "url": "git+https://github.com/Francois-Esquire/redux.io.git"
   },
+  "engines": {
+    "npm": "^5.2.0"
+  },
   "keywords": [
     "socket.io",
     "websocket",

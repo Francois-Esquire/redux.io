@@ -2,6 +2,8 @@
 
 Redux binding for Socket.io
 
+__In Development__
+
 ### Installation
 
 ```bash
@@ -109,9 +111,9 @@ export default class App extends React.Component {
 }
 ```
 
-The full example can be found within /redux.io.messenger.
-
 ## API:
+
+__Much More Detail Coming Soon__
 
 #### Setup
 
@@ -154,6 +156,15 @@ WithSocketHoC.propTypes = { ... };
 If you ever need direct access to the socket.io global:
 it's worthwhile to explore the socket.io library if you're new to it.
 [check it out.](https://github.com/socketio/socket.io-client/blob/master/docs/API.md)
+
+## TODO
+
+- [ ] Finalize 0.2.0 API
+- [ ] Finish Test Cases
+- [ ] Complete Documentation
+- [ ] Bitmap Example Project
+
+__PRs Are Welcome__
 
 ## Development:
 To build the project:
