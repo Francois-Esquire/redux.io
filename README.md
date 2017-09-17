@@ -8,271 +8,166 @@ Redux binding for Socket.io
 npm install redux.io --save
 ```
 
-## Usage Example:
+## Quick Start:
 
-### Integrating with your app.
+#### Getting your reference to Socket.io
 
-/index.js
 ```javascript
-import React from 'react';
-import ReactDOM from 'react-dom';
-import {
-  Provider,
-  connect
-} from 'react-redux';
-import {
-  createStore,
-  combineReducers,
-  applyMiddleware,
-  bindActionCreators
-} from 'redux';
-
-// if you're bundling to the client:
+/* Whether you're bundling with the client: */
 import io from 'socket.io-client';
-// or if you're having the file served:
+/* Or if you're having the file served: */
 const io = window.io;
-
-// comes with a constructor and an action creator made for dispatching your connections.
-import reduxIo, { connect as connectIo } from 'redux.io';
-// or
-const { default: reduxIo, connect: connectIo } = require('redux.io');
-
-/**
-  This is where the magic happens.
-  @param {Constructor} io The middleware chain to be applied.
-  @returns {Object} A pair of properties: the middleware and the reducer.
- */
-const socket = reduxIo(io);
-
-const reducers = combineReducers({
-  ...yourOtherReducers,
-  socket: socket.reducer,
-});
-
-const middleware = applyMiddleware(
-  socket.middleware,
-  ...(thunk, etc)
-);
-
-const store = createStore(reducers, middleware);
-
-const RealTimeMessenger = connect(
-  (state, ownProps) => Object.assign({}, state, ownProps),
-  dispatch => bindActionCreators({
-    // bind dispatch to the connectSocket
-    // this is what initiates any and every connection that passes through the store.
-    connect: connectIo,
-  }, dispatch)
-)(..Application);
-
-ReactDOM.render(<Provider store={store}>
-  <RealTimeMessenger />
-</Provider>, document.getElementById('root'));
 ```
 
-#### Consumption using React.
+#### Integrating with the store.
 
-/components/app.js
+/store.js
+```javascript
+import { createStore, combineReducers } from 'redux';
+import { reducer as reduxIo } from 'redux.io';
+
+const socket = reduxIo(io);
+
+export default function configureStore(initialState) {
+  const rootReducer = combineReducers({
+    ...yourOtherReducers,
+    socket,
+  });
+
+  return createStore(rootReducer, initialState);
+}
+```
+
+#### Wrapping your React component.
+
+/chat-box.js
+```javascript
+import { connect as withSocket } from 'redux.io';
+
+import ChatClient from './chat-client.js';
+
+const ns = '/chatter';
+const options = { ...options } || ownProps => ({
+  transports: ['polling', 'websocket'],
+  autoConnect: ownProps.autoConnect,
+});
+
+const withChatSocket = withSocket(ns, options);
+
+const ChatBox = withChatSocket(ChatClient, {
+  withRef: true,
+});
+
+export default ChatBox;
+```
+
+/chat-client.js
 ```javascript
 import React from 'react';
 
-export default class Application extends React.Component {
-  constructor(props) {
-    super(props);
-
-    this.state = {...};
-
-    props.connect('/chat', { autoconnect: false });
-  }
-  componentWillUnmount() { this.props.socket['/chat'].close(); }
-  componentWillReceiveProps(Props) {
-    if (Props.channel !== this.props.channel) {
-      this.setState({ channel: Props.channel },
-        () => sock.emit('channel:change',
-        Props.channel,
-        this.props.channel,
-        this.state.whoami));
-    }
-  }
-  componentWillUpdate(Props, State) {
-    const { whoami, handle } = State;
-    if (whoami && handle) Props.socket.open('/chat');
-    else Props.socket.close('/chat');
-  }
+export default class ChatClient extends React.Component {
+  constructor(props) { ... }
   componentDidMount() {
     const { socket, channel } = this.props;
 
-    // once connect is called, a socket connection is available on the socket object
-    // you can access the socket abstraction by selecting it by its namespace
-    socket['/chat'].on('connect', (dispatch, sock) => {
-      // in the occurrence of an event, the callback will contain:
-      // dispatch, the socket abstraction and any data passed to the event.
-
-      // when emitting or sending messages, it carries the same usage behavior as expected.
-      sock.emit('channel', channel);
-      this.setState({ connected: true });
-    });
-
-    socket['/chat'].on('disconnect', (dispatch, sock) =>
-      this.setState({ connected: false }));
-
-    // alternatively, you can interface with your socket connection using the top level helpers.
-    // The only addition is the namespace as the first argument.
-    socket.on('/chat', 'channel:join',
-      (d, s, whoami) => this.setState(
-        state => ({ party: state.party.concat(whoami) })));
-
-    socket.on('/chat', 'channel:leave',
-      (d, s, whoami) => this.setState(
-        state => ({ party: state.party.filter(m => m !== whoami) })));
-
-    socket.on('/chat', 'message:new',
-      (d, s, ({ message })) => this.setState(
-        state => ({ messages: state.messages.concat(data.message) })));
-
-    socket.on('/chat', 'typing', (dispatch, sock, data) => {
-      const { typing, whoami } = data;
-      if (this.state.typing.indexOf(whoami) >= 0) {
-        if (!typing) return this.setState(state => ({
-          typing: state.typing.filter(who => who !== whoami)
-        }));
-      }
-      else if (typing) return this.setState(state => ({
-        typing: state.typing.concat(whoami)
-      }));
+    socket.once('connect', () => {
+      socket
+        .on('user:join', (dispatch, ...eventData) => { ... })
+        .on('user:leave', ...)
+        ...
+        .on('chat:message', ...)
+        .on('disconnect', (dispatch, reason) => { ... });
     });
   }
-  sendMessage() {
-    const { content, whoami, channel } = this.state;
-    this.props.socket.emit('/chat', 'message:send',
-      { whoami, content, channel }, (dispatch, sock, data) => {
-      // by socket.io convention, acknowledgements (acks) are passed a function
-      // as the last parameter to an emit/send call.
-      // acks, just like events, are considered the same and passed the same arguments.
-
-      return this.setState(
-        state => ({ messages: state.messages.concat(data.message) }));
-    });
-  }
-  onTyping(typing) {
-    this.props.socket['/chat'].emit('typing:state', typing, this.state.whoami);
-  }
-  onSubmit(event) {
-    event.preventDefault();
-    switch (event.target.id) {
-      default: this.sendMessage();
-      case: 'identity': return this.setState({ handle: true },
-        () => localStorage && localStorage.setItem('whoami', this.state.whoami));
-    }
+  sendMessage(msg) {
+    this.props.socket.emit('message:send', msg, (dispatch, ...ackData) => { ... });
   }
   render() {
     return (<div>{ ... }</div>);
   }
 }
 ```
-The full example can be found within /app-starter.
+
+#### Declarative usage throughout your app.
+
+/app.js
+```javascript
+import React from 'react';
+
+import ChatBox from './chat-box';
+
+export default class App extends React.Component {
+  render() {
+    return (<main>
+      <ChatBox
+        path="/ws"
+        autoConnect={false}
+        onError={(dispatch, socket, error) => { ... }}
+        onConnect={(dispatch, socket) => { ... }} />
+    </main>);
+  }
+}
+```
+
+The full example can be found within /redux.io.messenger.
 
 ## API:
 
-No assumptions are made about how socket.io is delivered to the client.
-The only requirement is to pass socket.io to the redux.io constructor as the first parameter. The optional extensions parameter is reserved for future implementation.
+#### Setup
+
+It's up to you on how socket.io is delivered to the client.
+The only requirement is to pass socket.io to the redux.io constructor as the first parameter.
 
 ```javascript
-import reduxIO, { connect as connectSocket } from 'redux.io';
+import { reducer as reduxIo } from 'redux.io';
 
-const socket = reduxIO(io [, extensions]);
+const socket = reduxIo(io [, defaultOptions]);
+```
+#### Priming
 
-const reducer = socket.reducer;
-const middleware = socket.middleware;
+```javascript
+import PropTypes from 'prop-types';
+import { connect } from 'redux.io';
 
-const connectIO = (url [, options]) => dispatch(connectSocket(url, options));
+const options = (ownProps) => ({});
+
+const withSocketPrimer = connect(uri [, options]);
+```
+connect is the equivalent to:
+```javascript
+io.connect(uri, options);
 ```
 
-The complete options list can be found [here.](https://github.com/socketio/socket.io-client/blob/master/docs/API.md#new-managerurl-options)
-
-#### Socket Anatomy
+The complete of options as well as the defaultOptions list can be found [here.](https://github.com/socketio/socket.io-client/blob/master/docs/API.md#new-managerurl-options)
 
 ```javascript
-const state = store.getState();
-const socket = state.socket;
+ const HoCOptions = {
+   withRef: false,
+   alias: 'withSocket',
+ };
+
+const WithSocketHoC = withSocketPrimer(Component [, HoCOptions]);
+
+WithSocketHoC.propTypes = { ... };
 ```
 
 If you ever need direct access to the socket.io global:
 it's worthwhile to explore the socket.io library if you're new to it.
 [check it out.](https://github.com/socketio/socket.io-client/blob/master/docs/API.md)
 
-```javascript
-const io = socket.io;
-
-// use as you normally would:
-// note - this eclipses any association with the store.
-
-const home = io.connect('/', { autoConnect: false });
-home.open();
+## Development:
+To build the project:
+```bash
+npm run build
 ```
 
-```javascript
-// with a given namespace that you connect to, you can interface with the socket:
-// socket.namespaces contains the socket instance returned by io.connect().
-const sock = socket.namespaces[ns];
-
-// the remaining properties are top layer methods to perform on your namespaced connections.
-// the first parameter for each of theses methods is the namespace = '/chat' || '/' - default.
-const {
-  connect,
-  disconnect,
-  destroy,
-  send,
-  emit,
-  on,
-  once,
-  off,
-} = socket;
+To build the example app:
+```bash
+npm run build:app
 ```
 
-#### Socket Abstraction
-Whenever you connect to a namespace, an abstraction is created to drive home the core utility of the socket.
-All the calls are intercepted by the middleware, where it operates on the actual socket.io Socket instance.
+## History:
 
-```javascript
-const abstraction = socket[ns];
-const {
-  id,
-  open,
-  close,
-  destroy,
-  send,
-  emit,
-  on,
-  once,
-  off,
-} = abstraction;
-```
+0.2.0 - Breaking API changes, HoC Implementation.
 
-Both events and acknowledgement callbacks come with dispatch, the socket abstraction and the respective data passed with the invocation.
-
-```javascript
-socket['/notifications'].send('a shoutout for my peeps',
-  ['with', props.message, 'or'], 011001,
-  function (dispatch, socket, ...data) {...});
-
-socket['/chat'].emit('message:new', 'wassup',
-  function (dispatch, socket, ...data) {...});
-
-socket['/namespace'].on('event',
-  function (dispatch, socket, ...data) {...});
-
-socket['/'].once('connect',
-  function (dispatch, socket) {
-    return socket['/namespace'].emit('authentication', session.token);
-  });
-```
-
-Conversely, you can detach listeners.
-
-```javascript
-socket['/namespace'].off('same.event', fn);
-```
-** API is subject to change if there's a better fit.
-### History:
 0.1.0 - Initial Implementation.

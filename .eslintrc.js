@@ -1,12 +1,18 @@
 module.exports = {
-  extends: 'airbnb',
+  extends: [
+    'airbnb',
+    'plugin:ava/recommended'],
   parser: 'babel-eslint',
   parserOptions: {
     ecmaVersion: 2017,
     sourceType: 'module',
     jsx: true,
   },
+  env: {
+		es6: true
+	},
   plugins: [
+    'ava',
     'react',
     'jsx-a11y',
     'import',
