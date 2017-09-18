@@ -28,11 +28,11 @@
     "prepare": "npm run build",
     "prepublish": "run-s build test",
     "prepublishOnly": "run-s build test",
-    "build": "rollup -c",
-    "test": "ava",
     "build:watch": "rollup -c -w",
-    "test:watch": "npm test -- --watch --verbose",
-    "watch": "run-p *:watch"
+    "build": "rollup -c",
+    "dev": "run-p *:watch",
+    "test": "ava",
+    "test:watch": "npm test -- --watch"
   },
   "dependencies": {
     "hoist-non-react-statics": "^2.3.1",
@@ -76,13 +76,7 @@
   "ava": {
     "babel": "inherit",
     "require": [
-      "babel-core/register"
-    ]
-  },
-  "babel": {
-    "presets": [
-      "@ava/stage-4",
-      "react"
+      "babel-register"
     ]
   }
 }

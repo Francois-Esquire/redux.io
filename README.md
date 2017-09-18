@@ -12,7 +12,7 @@ npm install redux.io --save
 
 ## Quick Start:
 
-#### Getting your reference to Socket.io
+#### Getting your reference to Socket.io.
 
 ```javascript
 /* Whether you're bundling with the client: */
@@ -48,13 +48,13 @@ import { connect as withSocket } from 'redux.io';
 
 import ChatClient from './chat-client.js';
 
-const ns = '/chatter';
+const url = '/chatter';
 const options = { ...options } || ownProps => ({
   transports: ['polling', 'websocket'],
   autoConnect: ownProps.autoConnect,
 });
 
-const withChatSocket = withSocket(ns, options);
+const withChatSocket = withSocket(url, options);
 
 const ChatBox = withChatSocket(ChatClient, {
   withRef: true,
@@ -62,6 +62,29 @@ const ChatBox = withChatSocket(ChatClient, {
 
 export default ChatBox;
 ```
+
+#### Declarative usage throughout your app.
+
+/app.js
+```javascript
+import React from 'react';
+
+import ChatBox from './chat-box';
+
+export default class App extends React.Component {
+  render() {
+    return (<main>
+      <ChatBox
+        path="/ws"
+        autoConnect={false}
+        onError={(dispatch, socket, error) => { ... }}
+        onConnect={(dispatch, socket) => { ... }} />
+    </main>);
+  }
+}
+```
+
+#### Consuming the socket within your wrapped component.
 
 /chat-client.js
 ```javascript
@@ -90,27 +113,6 @@ export default class ChatClient extends React.Component {
 }
 ```
 
-#### Declarative usage throughout your app.
-
-/app.js
-```javascript
-import React from 'react';
-
-import ChatBox from './chat-box';
-
-export default class App extends React.Component {
-  render() {
-    return (<main>
-      <ChatBox
-        path="/ws"
-        autoConnect={false}
-        onError={(dispatch, socket, error) => { ... }}
-        onConnect={(dispatch, socket) => { ... }} />
-    </main>);
-  }
-}
-```
-
 ## API:
 
 __Much More Detail Coming Soon__
@@ -118,7 +120,7 @@ __Much More Detail Coming Soon__
 #### Setup
 
 It's up to you on how socket.io is delivered to the client.
-The only requirement is to pass socket.io to the redux.io constructor as the first parameter.
+The only requirement is to pass socket.io to the redux.io reducer as the first parameter.
 
 ```javascript
 import { reducer as reduxIo } from 'redux.io';
@@ -135,7 +137,7 @@ const options = (ownProps) => ({});
 
 const withSocketPrimer = connect(uri [, options]);
 ```
-connect is the equivalent to:
+connect  is the equivalent to:
 ```javascript
 io.connect(uri, options);
 ```
@@ -159,7 +161,7 @@ it's worthwhile to explore the socket.io library if you're new to it.
 
 ## TODO
 
-- [ ] Finalize 0.2.0 API
+- [ ] Finalize 0.2.0 API Implementation
 - [ ] Finish Test Cases
 - [ ] Complete Documentation
 - [ ] Bitmap Example Project
@@ -167,14 +169,17 @@ it's worthwhile to explore the socket.io library if you're new to it.
 __PRs Are Welcome__
 
 ## Development:
-To build the project:
+
+To start the project with the test runner, while watching for changes:
+
 ```bash
-npm run build
+npm run dev
 ```
 
-To build the example app:
+To build the project source:
+
 ```bash
-npm run build:app
+npm run build
 ```
 
 ## History:
