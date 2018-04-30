@@ -1,0 +1,31 @@
+{
+  "name": "redux.io-examples",
+  "version": "1.0.0",
+  "description": "usage patterns for redux.io",
+  "main": "index.js",
+  "scripts": {
+    "build": "rollup -c",
+    "build:watch": "npm run build -- -w",
+    "start": "node index.js"
+  },
+  "author": "Mike Tobia",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.3",
+    "prop-types": "^15.6.1",
+    "react": "^16.3.2",
+    "react-dom": "^16.3.2",
+    "react-redux": "^5.0.7",
+    "react-router-dom": "^4.2.2",
+    "redux": "^4.0.0",
+    "socket.io": "^2.1.0",
+    "ws": "^5.1.1"
+  },
+  "devDependencies": {
+    "rollup": "^0.58.2",
+    "rollup-plugin-buble": "^0.19.2",
+    "rollup-plugin-commonjs": "^9.1.0",
+    "rollup-plugin-node-resolve": "^3.3.0",
+    "rollup-plugin-re": "^1.0.7"
+  }
+}
