@@ -2,7 +2,7 @@
   "name": "redux.io",
   "description": "redux/react binding for websockets",
   "keywords": ["websocket", "socket.io", "react", "redux"],
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "dist/redux.io.js",
   "browser": "dist/redux.io.umd.js",
   "module": "dist/redux.io.es.js",

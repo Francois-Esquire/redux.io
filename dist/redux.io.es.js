@@ -1,7 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { connectAdvanced } from 'react-redux';
-import 'redux';
 
 const prefix = '@@io';
 
@@ -14,6 +13,11 @@ const ONCE = `${prefix}/once`;
 const DEFAULTS = `${prefix}/defaults`;
 
 function reducer(io, defaults) {
+  if (io === undefined)
+    { throw new Error(
+      'Please make sure you are passing in socket.io to the reducer.'
+    ); }
+
   const initialState = {
     io: io,
     defaults: defaults,
@@ -25,7 +29,7 @@ function reducer(io, defaults) {
     var obj;
 
     if (regexp.test(action.type)) {
-      const { type, ns } = action;
+      const { type, nsp, uri } = action;
 
       switch (type) {
         default:
@@ -33,19 +37,21 @@ function reducer(io, defaults) {
         case CREATE: {
           const { options } = action;
 
-          const socket = io.connect(ns, options);
+          const socket = io.connect(nsp, options);
 
-          return Object.assign({}, state, ( obj = {}, obj[ns] = socket, obj));
+          return Object.assign({}, state, ( obj = {}, obj[nsp] = socket, obj));
         }
         case CONNECT: {
-          const socket = state[ns];
+          const manager = io.managers[uri.replace(nsp)];
+          const socket = manager.nsps[nsp];
 
           if (socket) { socket.open(); }
 
           break;
         }
         case DISCONNECT: {
-          const socket = state[ns];
+          const manager = io.managers[uri.replace(nsp)];
+          const socket = manager.nsps[nsp];
 
           if (socket && socket.connected) { socket.close(); }
 
@@ -54,7 +60,8 @@ function reducer(io, defaults) {
         case ON:
         case OFF:
         case ONCE: {
-          const socket = state[ns];
+          const manager = io.managers[uri.replace(nsp)];
+          const socket = manager.nsps[nsp];
 
           if (socket) {
             const { event, callback } = action;
@@ -200,9 +207,8 @@ const propTypes = {
       cert: PropTypes.string,
     }),
     PropTypes.func ]),
-  initialize: PropTypes.func,
-  onPing: PropTypes.func,
-  onPong: PropTypes.func,
+  onMount: PropTypes.func,
+  onDismount: PropTypes.func,
   onConnect: PropTypes.func,
   onConnectError: PropTypes.func,
   onConnectTimeout: PropTypes.func,
@@ -220,9 +226,8 @@ const propTypes = {
 const defaultProps = {
   url: undefined,
   options: undefined,
-  initialize: undefined,
-  onPing: undefined,
-  onPong: undefined,
+  onMount: undefined,
+  onDismount: undefined,
   onConnect: undefined,
   onConnectError: undefined,
   onConnectTimeout: undefined,
@@ -238,17 +243,14 @@ const defaultProps = {
 };
 
 function socketConnection(dispatch, factoryOpts) {
-  // const actions = bindActionCreators(actionCreators, dispatch);
-
   return function socketPayload(state, props) {
     const { io, defaults = {} } = state.socket;
 
     const {
       url,
       options,
-      initialize,
-      onPing,
-      onPong,
+      onMount,
+      onDismount,
       onConnect,
       onConnectError,
       onConnectTimeout,
@@ -276,12 +278,10 @@ function socketConnection(dispatch, factoryOpts) {
     );
 
     return {
-      // actions,
       ownProps: ownProps,
       dispatch: dispatch,
-      initialize: initialize,
-      onPing: onPing,
-      onPong: onPong,
+      onMount: onMount,
+      onDismount: onDismount,
       onConnect: onConnect,
       onConnectError: onConnectError,
       onConnectTimeout: onConnectTimeout,
@@ -310,8 +310,6 @@ function withSocket(url, options) {
     url = undefined;
   }
 
-  // console.log(url, options);
-
   return function withSocketConnection(WrappedComponent, config = {}) {
     const { alias = 'WithSocket', withRef = false } = config;
 
@@ -338,7 +336,8 @@ function withSocket(url, options) {
 
         this.state = {
           id: undefined,
-          namespace: undefined,
+          uri: undefined,
+          nsp: undefined,
           readyState: undefined,
           connected: false,
         };
@@ -362,7 +361,6 @@ function withSocket(url, options) {
         var ref;
 
         if (queue.length) {
-          console.log(queue);
           while (queue.length) {
             const [op, ...args] = queue.shift();
             (ref = this)[op].apply(ref, args);
@@ -371,7 +369,7 @@ function withSocket(url, options) {
       }
 
       componentDidMount() {
-        const { io, url, options, initialize, dispatch } = this.props;
+        const { url, options, io, onMount, dispatch } = this.props;
 
         if (socket === undefined) { socket = io(url, options); }
 
@@ -383,11 +381,11 @@ function withSocket(url, options) {
           .on('reconnect_error', this.onError)
           .on('error', this.onError);
 
-        if (typeof initialize === 'function') { initialize(dispatch, this.socket); }
+        if (typeof onMount === 'function') { onMount(dispatch, this.socket); }
       }
 
       componentWillUnmount() {
-        const { closeOnUnmount } = this.props;
+        const { dispatch, closeOnUnmount, onDismount } = this.props;
 
         socket
           .off('message', this.onMessage)
@@ -396,6 +394,8 @@ function withSocket(url, options) {
           .off('connect_error', this.onError)
           .off('reconnect_error', this.onError)
           .off('error', this.onError);
+
+        if (typeof onDismount === 'function') { onDismount(dispatch, this.socket); }
 
         if (closeOnUnmount) { socket.close(); }
       }
@@ -409,15 +409,16 @@ function withSocket(url, options) {
       }
 
       update(cb) {
-        const { id, io, connected } = socket;
-        const { readyState, uri: namespace } = io;
+        const { id, nsp, connected, io } = socket;
+        const { uri, readyState } = io;
 
         this.setState(
           {
             id: id,
+            uri: uri,
+            nsp: nsp,
             readyState: readyState,
             connected: connected,
-            namespace: namespace,
           },
           () => typeof cb === 'function' && cb()
         );
@@ -428,7 +429,6 @@ function withSocket(url, options) {
 
         var args = [], len = arguments.length;
         while ( len-- ) args[ len ] = arguments[ len ];
-        console.log('onMessage', args);
         if (this.props.onMessage) {
           (ref = this.props).onMessage.apply(ref, args);
         }
@@ -452,20 +452,6 @@ function withSocket(url, options) {
             this.props.onDisconnect(dispatch, this.socket, reason);
           }
         });
-      }
-
-      onPing() {
-        const { dispatch } = this.props;
-        if (this.props.onPing) {
-          this.props.onPing(dispatch, this.socket);
-        }
-      }
-
-      onPong(latency) {
-        const { dispatch } = this.props;
-        if (this.props.onPong) {
-          this.props.onPong(dispatch, this.socket, latency);
-        }
       }
 
       onError(error) {

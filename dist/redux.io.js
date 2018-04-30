@@ -7,7 +7,6 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var React = _interopDefault(require('react'));
 var PropTypes = _interopDefault(require('prop-types'));
 var reactRedux = require('react-redux');
-require('redux');
 
 var prefix = '@@io';
 
@@ -20,6 +19,11 @@ var ONCE = prefix + "/once";
 var DEFAULTS = prefix + "/defaults";
 
 function reducer(io, defaults) {
+  if (io === undefined)
+    { throw new Error(
+      'Please make sure you are passing in socket.io to the reducer.'
+    ); }
+
   var initialState = {
     io: io,
     defaults: defaults,
@@ -33,7 +37,8 @@ function reducer(io, defaults) {
     if ( state === void 0 ) state = initialState;
     if (regexp.test(action.type)) {
       var type = action.type;
-      var ns = action.ns;
+      var nsp = action.nsp;
+      var uri = action.uri;
 
       switch (type) {
         default:
@@ -41,19 +46,21 @@ function reducer(io, defaults) {
         case CREATE: {
           var options = action.options;
 
-          var socket = io.connect(ns, options);
+          var socket = io.connect(nsp, options);
 
-          return Object.assign({}, state, ( obj = {}, obj[ns] = socket, obj));
+          return Object.assign({}, state, ( obj = {}, obj[nsp] = socket, obj));
         }
         case CONNECT: {
-          var socket$1 = state[ns];
+          var manager = io.managers[uri.replace(nsp)];
+          var socket$1 = manager.nsps[nsp];
 
           if (socket$1) { socket$1.open(); }
 
           break;
         }
         case DISCONNECT: {
-          var socket$2 = state[ns];
+          var manager$1 = io.managers[uri.replace(nsp)];
+          var socket$2 = manager$1.nsps[nsp];
 
           if (socket$2 && socket$2.connected) { socket$2.close(); }
 
@@ -62,7 +69,8 @@ function reducer(io, defaults) {
         case ON:
         case OFF:
         case ONCE: {
-          var socket$3 = state[ns];
+          var manager$2 = io.managers[uri.replace(nsp)];
+          var socket$3 = manager$2.nsps[nsp];
 
           if (socket$3) {
             var event = action.event;
@@ -211,9 +219,8 @@ var propTypes = {
       cert: PropTypes.string,
     }),
     PropTypes.func ]),
-  initialize: PropTypes.func,
-  onPing: PropTypes.func,
-  onPong: PropTypes.func,
+  onMount: PropTypes.func,
+  onDismount: PropTypes.func,
   onConnect: PropTypes.func,
   onConnectError: PropTypes.func,
   onConnectTimeout: PropTypes.func,
@@ -231,9 +238,8 @@ var propTypes = {
 var defaultProps = {
   url: undefined,
   options: undefined,
-  initialize: undefined,
-  onPing: undefined,
-  onPong: undefined,
+  onMount: undefined,
+  onDismount: undefined,
   onConnect: undefined,
   onConnectError: undefined,
   onConnectTimeout: undefined,
@@ -249,8 +255,6 @@ var defaultProps = {
 };
 
 function socketConnection(dispatch, factoryOpts) {
-  // const actions = bindActionCreators(actionCreators, dispatch);
-
   return function socketPayload(state, props) {
     var ref = state.socket;
     var io = ref.io;
@@ -258,9 +262,8 @@ function socketConnection(dispatch, factoryOpts) {
 
     var url = props.url;
     var options = props.options;
-    var initialize = props.initialize;
-    var onPing = props.onPing;
-    var onPong = props.onPong;
+    var onMount = props.onMount;
+    var onDismount = props.onDismount;
     var onConnect = props.onConnect;
     var onConnectError = props.onConnectError;
     var onConnectTimeout = props.onConnectTimeout;
@@ -274,7 +277,7 @@ function socketConnection(dispatch, factoryOpts) {
     var onMessage = props.onMessage;
     var closeOnUnmount = props.closeOnUnmount;
     var children = props.children;
-    var rest = objectWithoutProperties( props, ["url", "options", "initialize", "onPing", "onPong", "onConnect", "onConnectError", "onConnectTimeout", "onError", "onDisconnect", "onReconnect", "onReconnectAttempt", "onReconnectError", "onReconnectFailed", "onReconnecting", "onMessage", "closeOnUnmount", "children"] );
+    var rest = objectWithoutProperties( props, ["url", "options", "onMount", "onDismount", "onConnect", "onConnectError", "onConnectTimeout", "onError", "onDisconnect", "onReconnect", "onReconnectAttempt", "onReconnectError", "onReconnectFailed", "onReconnecting", "onMessage", "closeOnUnmount", "children"] );
     var ownProps = rest;
 
     var opts = options || factoryOpts.options;
@@ -288,12 +291,10 @@ function socketConnection(dispatch, factoryOpts) {
     );
 
     return {
-      // actions,
       ownProps: ownProps,
       dispatch: dispatch,
-      initialize: initialize,
-      onPing: onPing,
-      onPong: onPong,
+      onMount: onMount,
+      onDismount: onDismount,
       onConnect: onConnect,
       onConnectError: onConnectError,
       onConnectTimeout: onConnectTimeout,
@@ -321,8 +322,6 @@ function withSocket(url, options) {
     // eslint-disable-next-line no-param-reassign
     url = undefined;
   }
-
-  // console.log(url, options);
 
   return function withSocketConnection(WrappedComponent, config) {
     if ( config === void 0 ) config = {};
@@ -353,7 +352,8 @@ function withSocket(url, options) {
 
         this.state = {
           id: undefined,
-          namespace: undefined,
+          uri: undefined,
+          nsp: undefined,
           readyState: undefined,
           connected: false,
         };
@@ -382,7 +382,6 @@ function withSocket(url, options) {
         var ref$1;
 
         if (queue.length) {
-          console.log(queue);
           while (queue.length) {
             var ref = queue.shift();
             var op = ref[0];
@@ -394,10 +393,10 @@ function withSocket(url, options) {
 
       Socket.prototype.componentDidMount = function componentDidMount () {
         var ref = this.props;
-        var io = ref.io;
         var url = ref.url;
         var options = ref.options;
-        var initialize = ref.initialize;
+        var io = ref.io;
+        var onMount = ref.onMount;
         var dispatch = ref.dispatch;
 
         if (socket === undefined) { socket = io(url, options); }
@@ -410,12 +409,14 @@ function withSocket(url, options) {
           .on('reconnect_error', this.onError)
           .on('error', this.onError);
 
-        if (typeof initialize === 'function') { initialize(dispatch, this.socket); }
+        if (typeof onMount === 'function') { onMount(dispatch, this.socket); }
       };
 
       Socket.prototype.componentWillUnmount = function componentWillUnmount () {
         var ref = this.props;
+        var dispatch = ref.dispatch;
         var closeOnUnmount = ref.closeOnUnmount;
+        var onDismount = ref.onDismount;
 
         socket
           .off('message', this.onMessage)
@@ -424,6 +425,8 @@ function withSocket(url, options) {
           .off('connect_error', this.onError)
           .off('reconnect_error', this.onError)
           .off('error', this.onError);
+
+        if (typeof onDismount === 'function') { onDismount(dispatch, this.socket); }
 
         if (closeOnUnmount) { socket.close(); }
       };
@@ -438,17 +441,19 @@ function withSocket(url, options) {
 
       Socket.prototype.update = function update (cb) {
         var id = socket.id;
-        var io = socket.io;
+        var nsp = socket.nsp;
         var connected = socket.connected;
+        var io = socket.io;
+        var uri = io.uri;
         var readyState = io.readyState;
-        var namespace = io.uri;
 
         this.setState(
           {
             id: id,
+            uri: uri,
+            nsp: nsp,
             readyState: readyState,
             connected: connected,
-            namespace: namespace,
           },
           function () { return typeof cb === 'function' && cb(); }
         );
@@ -459,7 +464,6 @@ function withSocket(url, options) {
 
         var args = [], len = arguments.length;
         while ( len-- ) args[ len ] = arguments[ len ];
-        console.log('onMessage', args);
         if (this.props.onMessage) {
           (ref = this.props).onMessage.apply(ref, args);
         }
@@ -489,22 +493,6 @@ function withSocket(url, options) {
             this$1.props.onDisconnect(dispatch, this$1.socket, reason);
           }
         });
-      };
-
-      Socket.prototype.onPing = function onPing () {
-        var ref = this.props;
-        var dispatch = ref.dispatch;
-        if (this.props.onPing) {
-          this.props.onPing(dispatch, this.socket);
-        }
-      };
-
-      Socket.prototype.onPong = function onPong (latency) {
-        var ref = this.props;
-        var dispatch = ref.dispatch;
-        if (this.props.onPong) {
-          this.props.onPong(dispatch, this.socket, latency);
-        }
       };
 
       Socket.prototype.onError = function onError (error) {
