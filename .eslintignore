@@ -1,3 +1,5 @@
-dist
-node_modules
-redux.io.messenger/public
+.*
+dist/
+public/
+snippets/
+node_modules/

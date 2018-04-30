@@ -1,1 +1,6 @@
-bitmap
+.*
+*.config.*
+coverage/
+examples/
+lib/
+tests/

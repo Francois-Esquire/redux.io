@@ -1,64 +1,51 @@
 import test from 'ava';
-import { shallow, mount, render } from 'enzyme';
+import { mount } from 'enzyme';
 
 import React from 'react';
-import { createStore, combineReducers, bindActionCreators } from 'redux';
-import socketIO from 'socket.io-client';
+import client from 'socket.io-client';
 
-import { reducer as reduxIo } from '../lib/reducer';
-import { withSocket } from '../lib/withSocket';
+import createDom from './helpers/dom';
+import createStore from './helpers/store';
+import createServer from './helpers/server';
 
-let server;
-let store;
-let actions;
+import withSocket from '../lib/withSocket';
 
-test.before(() => { server = require('socket.io')().listen(3002); });
-test.after(() => server && server.close());
-test.before(() => {
-  const reducer = combineReducers({
-    socket: reduxIo(socketIO, {
-      transports: ['websocket', 'polling'],
-    }),
-  });
+const port = 3000;
 
-  store = createStore(reducer);
+const dom = createDom(port);
+const server = createServer(port);
+const store = createStore(client);
 
-  actions = bindActionCreators({
-    connect(ns) {
-      return { type: '@@io/create', ns };
-    },
-  }, (action) => {
-    store.dispatch(action);
-    return store.getState().socket.io.connect(`localhost:3002${action.ns}`);
-  });
-});
+test.after.always(() => server.close());
 
-test('Ping Button', (t) => {
-  const ns = '/flow';
+test('Ping Button', async t => {
+  const host = `http://localhost:${port}`;
 
-  const PingButton = (props) => {
+  const PingButton = withSocket(host)(props => {
     const { socket } = props;
-    console.log(props);
-    return (<button onClick={() => socket.emit('ping')}>Ping</button>);
-  };
 
-  const Ping = withSocket(`http://localhost:3002${ns}`, () => ({}))(PingButton, { alias: 'Ping' });
+    return <button onClick={() => socket.emit('ping')}>Ping</button>;
+  });
 
-  const wrapper = render((<Ping
-    store={store}
-    path="/"
-    autoConnect
-    reconnection
-    onSubmit={event => console.log(event)}
-    onPong={(dispatch, socket, latency) => console.log(latency)}
-    onConnect={(dispatch, socket) => {
-      console.log('connected');
-      socket.emit('ping');
-    }} />));
+  let wrapper;
 
-  // console.log(wrapper.props(), wrapper.instance().state);
-  console.log(wrapper.text());
+  await new Promise(resolve => {
+    wrapper = mount(
+      <PingButton
+        store={store}
+        onMount={(dispatch, socket) => {
+          socket.on('pong', latency => {
+            resolve();
+          });
+        }}
+        onConnect={(dispatch, socket) => {
+          socket.emit('ping');
+        }}
+      />,
+    );
+
+    wrapper.find('button').simulate('click');
+  });
+
   t.is(wrapper.text(), wrapper.text());
 });
-
-test.todo('wrapped component testing');

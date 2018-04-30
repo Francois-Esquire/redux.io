@@ -1,10 +1,13 @@
 language: node_js
 
 node_js:
-  - "7.7"
+  - "node"
+  - "9.0"
 
+before_install:
+  - npm install -g ava@next --save
+  
 install:
-  - npm install -g ava --save
   - npm install
 
 cache:

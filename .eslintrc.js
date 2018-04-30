@@ -1,7 +1,5 @@
 module.exports = {
-  extends: [
-    'airbnb',
-    'plugin:ava/recommended'],
+  extends: ['airbnb', 'plugin:ava/recommended', 'prettier'],
   parser: 'babel-eslint',
   parserOptions: {
     ecmaVersion: 2017,
@@ -9,25 +7,23 @@ module.exports = {
     jsx: true,
   },
   env: {
-		es6: true
-	},
-  plugins: [
-    'ava',
-    'react',
-    'jsx-a11y',
-    'import',
-    'babel'],
+    es6: true,
+  },
+  plugins: ['babel', 'import', 'react', 'jsx-a11y', 'ava', 'prettier'],
   rules: {
+    'no-underscore-dangle': 0,
     'jsx-a11y/href-no-hash': 0,
-    'react/prefer-stateless-function': [1, { ignorePureComponents: true }],
-    'react/no-multi-comp': 0,
-    'react/jsx-closing-bracket-location': [1, 'after-props'],
-    'react/prop-types': [1, {
-      ignore: ['dispatch'],
-    }],
-    'react/jsx-filename-extension': [1, { extensions: ['.js', '.jsx'] }],
+    'react/sort-comp': 0,
+    'react/prop-types': [
+      1,
+      {
+        ignore: ['dispatch'],
+      },
+    ],
     'import/no-unresolved': [2, { commonjs: true }],
-    'linebreak-style': 1,
+    'import/no-extraneous-dependencies': 0,
     'global-require': 0,
-  }
+    indent: 0,
+    'prettier/prettier': 2,
+  },
 };
