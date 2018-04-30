@@ -2,11 +2,11 @@ language: node_js
 
 node_js:
   - "node"
-  - "9.0"
 
-before_install:
-  - npm install -g ava@next --save
-  
+env:
+  global:
+    - NODE_ENV=development
+
 install:
   - npm install
 

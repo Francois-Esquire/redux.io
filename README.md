@@ -2,7 +2,7 @@
 
 Redux / React binding for Socket.io
 
-<!-- [![Build Status](https://travis-ci.org/Francois-Esquire/redux.io.svg?branch=master)](https://travis-ci.org/Francois-Esquire/redux.io) -->
+[![Build Status](https://travis-ci.org/Francois-Esquire/redux.io.svg?branch=master)](https://travis-ci.org/Francois-Esquire/redux.io)
 
 ## Installation
 
