@@ -19,7 +19,7 @@
     "react-router-dom": "^4.2.2",
     "redux": "^4.0.0",
     "socket.io": "^2.1.0",
-    "ws": "^5.1.1"
+    "ws": "^7.4.6"
   },
   "devDependencies": {
     "rollup": "^0.58.2",
