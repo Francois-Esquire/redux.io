@@ -8,3 +8,5 @@ snippets/
 /dist/
 /.build/
 /examples/dist/
+/test-results/
+/playwright-report/

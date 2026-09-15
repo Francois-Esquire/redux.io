@@ -4,16 +4,42 @@ import { Server } from 'socket.io';
 import type { ClientEvents, Message, ServerEvents } from './events.js';
 
 export function createDemoServer() {
-  const http = createServer((_request, response) => {
-    response.writeHead(200, { 'Content-Type': 'text/plain' });
-    response.end('redux.io demo Socket.IO server\n');
+  const http = createServer((request, response) => {
+    if (request.url === '/api/health') {
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          status: 'ok',
+          clients: io.engine.clientsCount,
+          messages: messages.length,
+        }),
+      );
+      return;
+    }
+    response.writeHead(404);
+    response.end('Not found');
   });
-  const io = new Server<ClientEvents, ServerEvents>(http);
+  const io = new Server<ClientEvents, ServerEvents>(http, {
+    allowRequest: (request, callback) => {
+      const origin = request.headers.origin;
+      if (!origin) return callback(null, true);
+      try {
+        callback(
+          null,
+          ['127.0.0.1', 'localhost', '[::1]'].includes(
+            new URL(origin).hostname,
+          ),
+        );
+      } catch {
+        callback(null, false);
+      }
+    },
+  });
   const messages: Message[] = [];
 
   io.on('connection', socket => {
     socket.emit('history', messages);
-    io.emit('presence', io.engine.clientsCount);
+    io.emit('presence', io.of('/').sockets.size);
     socket.on('chat:send', (text, acknowledge) => {
       if (typeof acknowledge !== 'function') return;
       if (
@@ -37,7 +63,7 @@ export function createDemoServer() {
       io.emit('message', message);
       acknowledge({ ok: true, id: message.id });
     });
-    socket.on('disconnect', () => io.emit('presence', io.engine.clientsCount));
+    socket.on('disconnect', () => io.emit('presence', io.of('/').sockets.size));
   });
 
   return { http, io };

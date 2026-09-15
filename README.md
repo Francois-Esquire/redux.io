@@ -29,6 +29,8 @@ Development and CI require Node 22.22.2+, 24.15+, or 26+. Both native ESM and Co
 
 ## React-only hook
 
+Want to try both APIs first? Run `npm run examples:dev` from this repository and open http://127.0.0.1:5173. [Signal Station](examples/README.md) has a client menu and a two-tab tutorial, using the same chat UI with Redux Toolkit or React-only hooks. That one command starts Vite and the proxied socket server.
+
 ```tsx
 import { useEffect, useState } from 'react';
 import { useSocket } from 'redux.io/react';

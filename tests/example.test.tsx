@@ -7,11 +7,11 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { Provider } from 'react-redux';
 import { io, type Socket } from 'socket.io-client';
 import type { AddressInfo } from 'node:net';
 import { createDemoServer } from '../examples/server.js';
-import { createDemoStore } from '../examples/store.js';
+import { ReduxChat } from '../examples/ReduxChat.js';
+import { ReactChat } from '../examples/ReactChat.js';
 import { App } from '../examples/App.js';
 import type {
   ClientEvents,
@@ -37,38 +37,61 @@ afterEach(async () => {
   await new Promise<void>(resolve => server.io.close(() => resolve()));
 });
 
-test('the packaged bindings drive chat, acknowledgements, Redux updates and reconnection', async () => {
-  const store = createDemoStore();
-  const view = render(
-    <Provider store={store}>
-      <App url={url} />
-    </Provider>,
-  );
+test.each([
+  ['Redux', ReduxChat],
+  ['React', ReactChat],
+] as const)(
+  '%s client drives chat, acknowledgements and reconnection',
+  async (_name, Client) => {
+    const view = render(<Client url={url} />);
+    await screen.findByRole('button', { name: 'Disconnect' });
+    await act(async () => {
+      await new Promise<void>(resolve =>
+        peer.once('connect', resolve).connect(),
+      );
+    });
+    await screen.findByText('Connected · 2 online');
+    const broadcast = new Promise<string>(resolve =>
+      peer.once('message', message => resolve(message.text)),
+    );
+    fireEvent.change(screen.getByLabelText('Message'), {
+      target: { value: 'Hello from TypeScript' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByText('Delivered');
+    expect(await broadcast).toBe('Hello from TypeScript');
+    expect(screen.getByText('Hello from TypeScript')).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>('Message').value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Send' }).disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    await screen.findByRole('button', { name: 'Disconnect' });
+    await waitFor(() =>
+      expect(screen.getAllByText('Hello from TypeScript')).toHaveLength(1),
+    );
+    view.unmount();
+    await waitFor(() => expect(server.io.engine.clientsCount).toBe(1));
+  },
+);
+
+test('switching clients keeps one connection and replays the same history', async () => {
+  const view = render(<App url={url} />);
   await screen.findByRole('button', { name: 'Disconnect' });
-  await act(async () => {
-    await new Promise<void>(resolve => peer.once('connect', resolve).connect());
-  });
-  await waitFor(() => expect(store.getState().chat.online).toBe(2));
-  const broadcast = new Promise<string>(resolve =>
-    peer.once('message', message => resolve(message.text)),
-  );
   fireEvent.change(screen.getByLabelText('Message'), {
-    target: { value: 'Hello from TypeScript' },
+    target: { value: 'Shared across clients' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
   await screen.findByText('Delivered');
-  expect(await broadcast).toBe('Hello from TypeScript');
-  expect(store.getState().chat.messages[0].text).toBe('Hello from TypeScript');
-  expect(screen.getByLabelText<HTMLInputElement>('Message').value).toBe('');
-  fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
-  expect(
-    screen.getByRole<HTMLButtonElement>('button', { name: 'Send' }).disabled,
-  ).toBe(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
-  await screen.findByRole('button', { name: 'Disconnect' });
-  await waitFor(() => expect(store.getState().chat.messages).toHaveLength(1));
+  for (const name of ['React only', 'Redux Toolkit', 'React only']) {
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(name) }));
+    await screen.findByRole('button', { name: 'Disconnect' });
+    await screen.findByText('Shared across clients');
+    await waitFor(() => expect(server.io.engine.clientsCount).toBe(1));
+  }
   view.unmount();
-  await waitFor(() => expect(server.io.engine.clientsCount).toBe(1));
+  await waitFor(() => expect(server.io.engine.clientsCount).toBe(0));
 });
 
 test('the server validates input and replays recent history', async () => {

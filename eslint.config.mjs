@@ -12,6 +12,10 @@ export default [
     ],
   },
   js.configs.recommended,
+  {
+    files: ['tests/**/*.mjs'],
+    languageOptions: { globals: { fetch: 'readonly' } },
+  },
   ...tseslint.configs.recommended.map(config => ({
     ...config,
     files: ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts'],
