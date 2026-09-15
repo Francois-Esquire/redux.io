@@ -37,6 +37,7 @@ test('the npm tarball loads through native CommonJS and ESM package exports', ()
       'dist/redux.io.d.mts',
       'lib/index.ts',
       'lib/types.ts',
+      'CONTRIBUTING.md',
       'dist/react.js',
       'dist/react.mjs',
       'dist/react.d.ts',
@@ -51,7 +52,7 @@ test('the npm tarball loads through native CommonJS and ESM package exports', ()
     }
     assert.ok(
       packed.files.every(file =>
-        /^(dist\/|lib\/.*\.ts$|README.md$|CHANGELOG.md$|LICENSE$|package.json$)/.test(
+        /^(dist\/|lib\/.*\.ts$|README.md$|CONTRIBUTING.md$|CHANGELOG.md$|LICENSE$|package.json$)/.test(
           file.path,
         ),
       ),

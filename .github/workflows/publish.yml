@@ -1,9 +1,10 @@
-name: Publish to npm
+name: Publish Package
 
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: read
@@ -14,40 +15,42 @@ concurrency:
 
 jobs:
   build:
+    name: Build and test package
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.release.outputs.tag }}
       prerelease: ${{ steps.release.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 24
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Generate release documentation
+          node-version: '24'
+          package-manager-cache: false
+      - name: Validate release tag
         id: release
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+          REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
           TAG="v$VERSION"
-          if [ "$EVENT_NAME" = "release" ] && [ "$RELEASE_TAG" != "$TAG" ]; then
-            echo "Release tag must match package version: $TAG" >&2
+          if [ "$REF_TYPE" != "tag" ] || [ "$RELEASE_TAG" != "$TAG" ]; then
+            echo "Run this workflow from the tag matching the package version: $TAG" >&2
             exit 1
           fi
           PRERELEASE=false
-          if [[ "$VERSION" == *-* ]] || [ "$RELEASE_PRERELEASE" = "true" ]; then
+          if [[ "$VERSION" == *-* ]]; then
             PRERELEASE=true
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate release documentation
+        run: |
           npm run changelog
           mkdir -p artifact
           node release-notes.mjs artifact/release-notes.md
@@ -68,31 +71,41 @@ jobs:
           retention-days: 7
 
   publish:
-    needs: build
+    name: Publish tested artifact
+    needs: [build]
+    if: ${{ needs.build.result == 'success' }}
+    environment: npm
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: '24'
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Verify npm supports trusted publishing
+        run: |
+          node --version
+          npm --version
+          node -e '
+            const [major, minor, patch] = process.argv[1].split(".").map(Number);
+            if (major < 11 || (major === 11 && (minor < 5 || (minor === 5 && patch < 1)))) {
+              throw new Error("Trusted publishing requires npm >=11.5.1. Update the setup-node Node version.");
+            }
+          ' "$(npm --version)"
       - uses: actions/download-artifact@v4
         with:
           name: npm-package
           path: artifact
       - name: Unpack the built package
         run: tar -xzf artifact/package.tgz
-      - name: Publish when a token is available
+      - name: Publish with npm trusted publishing
         id: npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_DIST_TAG: ${{ needs.build.outputs.prerelease == 'true' && 'next' || 'latest' }}
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN is not configured; skipping publication." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
           npm publish ./package --ignore-scripts --access public --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org
           echo "published=true" >> "$GITHUB_OUTPUT"
       - name: Create or update GitHub release notes
