@@ -74,6 +74,46 @@ createRoot(document.getElementById('root')).render(
 
 The server must accept the configured origin and authentication. Socket.IO is a protocol layered over WebSocket or HTTP polling; this wrapper does not connect to a plain WebSocket server.
 
+## TypeScript
+
+The library is written in TypeScript. The package includes declarations for both ESM and CommonJS; no separate `@types/redux.io` package is needed. Install React's types in TypeScript applications with `npm install -D @types/react`.
+
+```tsx
+import { io } from 'socket.io-client';
+import { withSocket, type SocketProps } from 'redux.io';
+
+interface ServerEvents {
+  greeting: (message: string) => void;
+}
+
+interface ClientEvents {
+  save: (text: string, ack: (result: { id: string }) => void) => void;
+}
+
+function Editor({
+  socket,
+  title,
+}: SocketProps<ServerEvents, ClientEvents> & { title: string }) {
+  return (
+    <button
+      onClick={() =>
+        socket.emit('save', title, result => console.log(result.id))
+      }
+    >
+      {title}
+    </button>
+  );
+}
+
+const ConnectedEditor = withSocket<ServerEvents, ClientEvents>()(Editor, {
+  io,
+});
+```
+
+Render `<ConnectedEditor title="Draft" />` inside a Redux `Provider`. The wrapper injects `socket`; callers supply the remaining component props. Event names, payloads, listener parameters, and acknowledgement callbacks are checked against the two event maps. Omitting the maps keeps events permissive for existing JavaScript integrations. Types do not validate network input; validate payloads on the server.
+
+`SocketInterface`, `SocketProps`, `SocketOptions`, `SocketFactory`, `SocketConfig`, `SocketLifecycleProps`, `SocketConnector`, `SocketWrapperRef`, and `LegacySocketState` are exported types. `redux.io/source` exposes the original TypeScript entry point for bundlers and source tooling; ordinary applications should import `redux.io` to use compiled JavaScript.
+
 ## API
 
 ### `withSocket(url?, options?)(Component?, config?)`
@@ -148,8 +188,8 @@ Wrappers without `config.io` read this configuration. This legacy reducer stores
 - Prefer `import { io } from 'socket.io-client'`, then pass `{ io }` as wrapper configuration. Remove the legacy socket reducer when no wrappers depend on it.
 - Socket instances are now isolated per wrapper instance. Code that relied on accidental sharing must explicitly manage connection ownership.
 - Use `onConnectError` for connection failures and `onReconnectAttempt` for reconnection attempts. Socket.IO 4 does not emit the old `connect_timeout` or `reconnecting` events.
-- Use the package root for imports. The export map does not expose internal source modules.
-- The old application under [examples](examples/README.md) is a historical demo, with its original dependency graph. Use the Redux Toolkit example above for current integrations.
+- Use the package root for runtime imports. TypeScript source is available through `redux.io/source` for tooling that compiles dependencies.
+- The runnable [example application](examples/README.md) uses React, Redux Toolkit, and Socket.IO 4 with shared TypeScript events.
 
 ## Development
 
@@ -162,9 +202,11 @@ npm run check
 npm pack --dry-run
 ```
 
-`npm run check` runs lint, formatting checks, tests with coverage thresholds, all builds, and tests of the npm tarball's CommonJS, ESM, and UMD entry points. The integration tests start a real Socket.IO server on an OS-assigned localhost port and close every connection after each test.
+`npm run check` runs lint, formatting checks, strict TypeScript checks, tests with coverage thresholds, library and example builds, and tests of the npm tarball's CommonJS, ESM, and UMD entry points. Package tests also compile valid and invalid TypeScript consumers against the unpacked declarations. The integration tests start a real Socket.IO server on an OS-assigned localhost port and close every connection after each test.
 
-CI checks Node 22, 24, and 26 with React 18 and 19. Coverage thresholds are 100% for statements, branches, functions, and lines. Watch modes are `npm run watch:test` and `npm run watch:build`.
+CI checks Node 22, 24, and 26 with React 18 and 19. Library coverage thresholds are 100% for statements, branches, functions, and lines. `npm run watch:test` watches tests. `npm run watch:build` watches TypeScript compilation into `.build`; run `npm run build` to refresh packaged bundles.
+
+Generated `dist`, `.build`, and `examples/dist` directories are ignored by Git. The npm tarball still includes compiled JavaScript and declarations in `dist`, plus the original TypeScript in `lib`. A clean checkout builds these artifacts before testing package imports.
 
 The `prepack` hook builds ordinary npm packages. CI builds explicitly before packing with `--ignore-scripts`, so packing and publishing the tested artifact do not rerun the build.
 
@@ -172,7 +214,7 @@ Implementation references: [React Redux connect](https://react-redux.js.org/api/
 
 ### Git hooks
 
-Run `npm run hooks:install` once per clone after installing dependencies. Husky runs `lint-staged` before commits to fix lint and formatting issues in staged source, tests, configuration, and release documentation. It preserves unstaged portions of partially staged files. Generated bundles and historical examples are excluded.
+Run `npm run hooks:install` once per clone after installing dependencies. Husky runs `lint-staged` before commits to fix lint and formatting issues in staged TypeScript source, examples, tests, configuration, and release documentation. It preserves unstaged portions of partially staged files. Generated bundles are excluded.
 
 Before a push, Husky runs `npm run check`, including the 100% coverage requirements and package smoke tests. CI runs the same checks independently. Hooks run installed local tools; they do not download dependencies.
 

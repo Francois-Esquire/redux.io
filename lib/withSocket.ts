@@ -1,6 +1,17 @@
 import React from 'react';
 import hoistNonReactStatics from 'hoist-non-react-statics';
 import { connect } from 'react-redux';
+import type {
+  EventsMap,
+  SocketConnector,
+  SocketConfig,
+  SocketOptions,
+} from './types.js';
+
+type Callback = (...args: any[]) => void;
+type RuntimeProps = Record<string, any>;
+type RuntimeClient = Record<string, any>;
+type UserListener = { event: string; callback: Callback; listener?: Callback };
 
 const socketEvents = {
   connect: 'onConnect',
@@ -38,16 +49,42 @@ const reservedProps = new Set([
   ...Object.values(managerEvents),
 ]);
 
-export default function withSocket(url, options) {
+export default function withSocket<
+  ListenEvents = EventsMap,
+  EmitEvents = ListenEvents,
+>(
+  url?: string | SocketOptions | null,
+  options?: SocketOptions | ((props: Record<string, any>) => SocketOptions),
+): SocketConnector<ListenEvents, EmitEvents>;
+export default function withSocket(
+  url?: string | SocketOptions | null,
+  options?: SocketOptions | ((props: RuntimeProps) => SocketOptions),
+): any {
   const optionsOnly = url !== null && typeof url === 'object';
   const factoryUrl = optionsOnly ? undefined : url;
   const factoryOptions = optionsOnly ? url : options;
 
-  return function withSocketConnection(WrappedComponent, config = {}) {
+  return function withSocketConnection(
+    WrappedComponent?: React.ComponentType<any> | null,
+    config: SocketConfig = {},
+  ) {
     const { alias = 'WithSocket', withRef = false } = config;
 
-    class Socket extends React.PureComponent {
-      constructor(props) {
+    class Socket extends React.PureComponent<
+      RuntimeProps,
+      Record<string, any>
+    > {
+      static displayName: string;
+      client: RuntimeClient | null;
+      retainedClient?: RuntimeClient | null;
+      queue: [string, any[]][];
+      listeners: [RuntimeClient, string, Callback][];
+      userListeners: UserListener[];
+      api: Record<string, (...args: any[]) => any>;
+      wrappedInstance: unknown;
+      setWrappedInstance: (instance: unknown) => void;
+
+      constructor(props: RuntimeProps) {
         super(props);
         this.state = {
           id: undefined,
@@ -73,7 +110,7 @@ export default function withSocket(url, options) {
           'send',
           'compress',
         ]) {
-          this.api[method] = (...args) => {
+          this.api[method] = (...args: any[]) => {
             this.perform(method, args);
             return this.socket;
           };
@@ -106,7 +143,7 @@ export default function withSocket(url, options) {
         this.start();
       }
 
-      componentDidUpdate(previous) {
+      componentDidUpdate(previous: RuntimeProps) {
         if (previous.io !== this.props.io || previous.url !== this.props.url) {
           this.stop(true);
           this.start();
@@ -124,7 +161,7 @@ export default function withSocket(url, options) {
       }
 
       snapshot() {
-        const { id, nsp, connected, io } = this.client;
+        const { id, nsp, connected, io } = this.client!;
         return {
           id,
           nsp,
@@ -132,19 +169,19 @@ export default function withSocket(url, options) {
           uri: io.uri,
           readyState: connected
             ? 'open'
-            : this.client.active
+            : this.client!.active
               ? 'opening'
               : 'closed',
         };
       }
 
-      notify(name, args = []) {
+      notify(name: string, args: any[] = []) {
         const callback = this.props[name];
         if (typeof callback === 'function')
           callback(this.props.dispatch, this.socket, ...args);
       }
 
-      listen(target, event, callback) {
+      listen(target: RuntimeClient, event: string, callback: Callback) {
         target.on(event, callback);
         this.listeners.push([target, event, callback]);
       }
@@ -167,30 +204,30 @@ export default function withSocket(url, options) {
           this.retainedClient || io(this.props.url ?? factoryUrl, settings);
         this.retainedClient = null;
         for (const [event, name] of Object.entries(socketEvents)) {
-          this.listen(this.client, event, (...args) => {
+          this.listen(this.client!, event, (...args) => {
             this.setState(this.snapshot());
             this.notify(name, args);
             if (event === 'connect_error') this.notify('onError', args);
           });
         }
-        this.listen(this.client, 'message', (...args) =>
+        this.listen(this.client!, 'message', (...args) =>
           this.props.onMessage?.(...args),
         );
         for (const [event, name] of Object.entries(managerEvents)) {
-          this.listen(this.client.io, event, (...args) => {
+          this.listen(this.client!.io, event, (...args) => {
             this.notify(name, args);
             if (event === 'reconnect_error') this.notify('onError', args);
           });
         }
         const pending = this.queue.splice(0);
         for (const [method, args] of pending) this.perform(method, args);
-        if (settings.autoConnect !== false && !this.client.connected)
-          this.client.connect();
+        if (settings.autoConnect !== false && !this.client!.connected)
+          this.client!.connect();
         this.setState(this.snapshot());
         this.notify('onMount');
       }
 
-      stop(close) {
+      stop(close: boolean) {
         if (!this.client) {
           this.queue = [];
           return;
@@ -211,17 +248,17 @@ export default function withSocket(url, options) {
         }
       }
 
-      perform(method, args) {
+      perform(method: string, args: any[]) {
         if (!this.client) {
           this.queue.push([method, args]);
           return;
         }
         if (method === 'on' || method === 'once') {
           const [event, callback] = args;
-          const entry = { event, callback };
+          const entry: UserListener = { event, callback };
           entry.listener = (...data) => {
             if (method === 'once') {
-              this.client.off(event, entry.listener);
+              this.client!.off(event, entry.listener);
               this.userListeners = this.userListeners.filter(
                 item => item !== entry,
               );
@@ -237,7 +274,7 @@ export default function withSocket(url, options) {
               (event === undefined || entry.event === event) &&
               (callback === undefined || entry.callback === callback)
             ) {
-              this.client.off(entry.event, entry.listener);
+              this.client!.off(entry.event, entry.listener);
               return false;
             }
             return true;
@@ -252,7 +289,10 @@ export default function withSocket(url, options) {
       }
 
       render() {
-        const payload = { ...this.ownProps(), socket: this.socket };
+        const payload: RuntimeProps = {
+          ...this.ownProps(),
+          socket: this.socket,
+        };
         if (WrappedComponent) {
           payload.children = this.props.children;
           if (withRef) payload.ref = this.setWrappedInstance;
@@ -271,7 +311,9 @@ export default function withSocket(url, options) {
       WrappedComponent?.displayName || WrappedComponent?.name || 'Component';
     Socket.displayName = `${alias}(${displayName})`;
     const SocketWrapper = connect(
-      state => ({
+      (state: {
+        socket?: { io?: SocketConfig['io']; defaults?: SocketOptions };
+      }) => ({
         io: config.io ?? state.socket?.io,
         defaults: config.defaults ?? state.socket?.defaults,
       }),

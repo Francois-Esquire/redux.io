@@ -6,6 +6,7 @@ const {
   readFileSync,
   rmSync,
   symlinkSync,
+  writeFileSync,
 } = require('node:fs');
 const { tmpdir } = require('node:os');
 const path = require('node:path');
@@ -31,9 +32,20 @@ test('the npm tarball loads through native CommonJS and ESM package exports', ()
       ),
     )[0];
     assert.ok(packed.files.some(file => file.path === 'dist/redux.io.mjs'));
+    for (const file of [
+      'dist/redux.io.d.ts',
+      'dist/redux.io.d.mts',
+      'lib/index.ts',
+      'lib/types.ts',
+    ]) {
+      assert.ok(
+        packed.files.some(entry => entry.path === file),
+        `Missing ${file}`,
+      );
+    }
     assert.ok(
       packed.files.every(file =>
-        /^(dist\/|README.md$|CHANGELOG.md$|LICENSE$|package.json$)/.test(
+        /^(dist\/|lib\/.*\.ts$|README.md$|CHANGELOG.md$|LICENSE$|package.json$)/.test(
           file.path,
         ),
       ),
@@ -83,7 +95,12 @@ test('the npm tarball loads through native CommonJS and ESM package exports', ()
       path.join(directory, 'package'),
       path.join(modules, 'redux.io'),
     );
-    for (const dependency of ['react', 'react-redux']) {
+    for (const dependency of [
+      'react',
+      'react-redux',
+      'redux',
+      'socket.io-client',
+    ]) {
       symlinkSync(
         path.dirname(require.resolve(dependency + '/package.json')),
         path.join(modules, dependency),
@@ -101,6 +118,79 @@ test('the npm tarball loads through native CommonJS and ESM package exports', ()
       ['--input-type=module', '-e', "import * as pkg from 'redux.io';" + check],
       { cwd: directory },
     );
+    mkdirSync(path.join(modules, '@types'));
+    mkdirSync(path.join(modules, '@reduxjs'));
+    for (const dependency of [
+      '@types/react',
+      '@types/hoist-non-react-statics',
+      '@reduxjs/toolkit',
+      'hoist-non-react-statics',
+    ]) {
+      symlinkSync(
+        path.join(__dirname, '../node_modules', dependency),
+        path.join(modules, dependency),
+      );
+    }
+    const compiler = require.resolve('typescript/bin/tsc');
+    for (const type of ['module', 'commonjs']) {
+      writeFileSync(
+        path.join(directory, 'package.json'),
+        JSON.stringify({ type }),
+      );
+      writeFileSync(
+        path.join(directory, 'consumer.tsx'),
+        readFileSync(path.join(__dirname, 'types/consumer.tsx')),
+      );
+      writeFileSync(
+        path.join(directory, 'source.ts'),
+        "import { withSocket, type SocketInterface } from 'redux.io/source'; export const connect = withSocket; export type Client = SocketInterface;",
+      );
+      writeFileSync(
+        path.join(directory, 'tsconfig.json'),
+        JSON.stringify({
+          compilerOptions: {
+            strict: true,
+            noEmit: true,
+            module: 'NodeNext',
+            moduleResolution: 'NodeNext',
+            jsx: 'react-jsx',
+            target: 'ES2022',
+            types: ['react'],
+          },
+          files: ['consumer.tsx', 'source.ts'],
+        }),
+      );
+      execFileSync(process.execPath, [compiler, '-p', directory], {
+        cwd: directory,
+        stdio: 'pipe',
+      });
+      writeFileSync(
+        path.join(directory, 'consumer.tsx'),
+        readFileSync(path.join(__dirname, 'types/invalid.tsx')),
+      );
+      let diagnostics = '';
+      try {
+        execFileSync(
+          process.execPath,
+          [compiler, '-p', directory, '--pretty', 'false'],
+          { cwd: directory, stdio: 'pipe' },
+        );
+      } catch (error) {
+        diagnostics = error.stdout.toString();
+      }
+      const errors = diagnostics
+        .split('\n')
+        .filter(line => line.includes('error TS'));
+      assert.equal(
+        errors.length,
+        7,
+        `Expected seven rejected type errors (${type}):\n${diagnostics}`,
+      );
+      assert.ok(
+        errors.every(line => /(?:^|\/)consumer\.tsx\(/.test(line)),
+        diagnostics,
+      );
+    }
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

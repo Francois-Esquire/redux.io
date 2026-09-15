@@ -5,3 +5,6 @@ node_modules/
 snippets/
 *.log
 .DS-store
+/dist/
+/.build/
+/examples/dist/

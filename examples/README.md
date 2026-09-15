@@ -1,260 +1,35 @@
-## Historical demo
+# Typed live chat
 
-This application uses the original React 16 and Socket.IO 2 dependency graph. It is not part of the modern package's test or support matrix. See the [root README](../README.md) for the current React 18/19 and Redux Toolkit integration.
+This replaces the historical React 16 demos with a React 19, Redux Toolkit, and Socket.IO 4 application. It uses the root dependency lockfile and imports `redux.io` through its public package exports, not internal source paths.
 
-## Making The Killer App:
+From the repository root:
 
-**/store.js**
-
-```javascript
-import { createStore, combineReducers } from 'redux';
-
-import { reducer as socket } from 'redux.io';
-
-/* Get your reference to Socket.io. */
-
-/* Whether you're bundling with the client: */
-import io from 'socket.io-client';
-
-/* Or if you're having the file served: */
-const io = window.io;
-
-const rootReducer = combineReducers({
-  socket: socket(io),
-});
-
-const store = createStore(rootReducer);
+```sh
+npm ci
+npm run examples:server
 ```
 
-**/app.js**
+In another terminal:
 
-```javascript
-import React from 'react';
-import { Provider } from 'react-redux';
-import { render } from 'react-dom';
-
-import { withSocket as io } from 'redux.io';
-
-import store from './store';
-
-// Playing in the dark.
-class ZombieLand extends React.PureComponent {
-  constructor(props) {
-    super(props);
-
-    this.state = {
-      players: 0,
-      infected: 0,
-      infectious: false,
-      x: 0,
-      y: 0,
-    };
-
-    this.keyUp = this.keyUp.bind(this);
-  }
-
-  componentDidMount() {
-    const { socket } = this.props;
-
-    socket
-      .on('count', players => this.setState({ players }))
-      .on('infected', infected => this.setState({ infected }))
-      .on('infectious', infectious => this.setState({ infectious }))
-      .connect();
-
-    document.body.addEventListener('keydown', this.keyUp);
-  }
-
-  componentDidUpdate(_props, _state) {
-    const { x, y } = this.state;
-
-    if (_state.x !== x || _state.y !== y) this.move();
-  }
-
-  componentWillUnmount() {
-    document.body.removeEventListener('keydown', this.keyUp);
-  }
-
-  move() {
-    const { socket } = this.props;
-    const { x, y } = this.state;
-
-    socket.emit('position', x, y);
-  }
-
-  keyUp(event) {
-    event.preventDefault();
-
-    const { keyCode } = event;
-
-    const { x, y } = this.state;
-
-    switch (keyCode) {
-      default:
-        break;
-      case 37: /* Arrow Left */
-      case 39: /* Arrow Right */
-      case 65: /* a */
-      case 68: /* d */ {
-        if ([39, 68].includes(keyCode)) {
-          if (x + 1 <= 100) this.setState({ x: x + 1 });
-        } else if ([37, 65].includes(keyCode)) {
-          if (x - 1 >= 0) this.setState({ x: x - 1 });
-        }
-        break;
-      }
-      case 38: /* Arrow Up */
-      case 40: /* Arrow Down */
-      case 87: /* w */
-      case 83: /* s */ {
-        if ([40, 83].includes(keyCode)) {
-          if (y + 1 <= 100) this.setState({ y: y + 1 });
-        } else if ([38, 87].includes(keyCode)) {
-          if (y - 1 >= 0) this.setState({ y: y - 1 });
-        }
-        break;
-      }
-    }
-  }
-
-  render() {
-    const { socket } = this.props;
-    const { x, y, players, infected, infectious } = this.state;
-
-    return socket.connected ? (
-      <section>
-        <header>
-          <h2>Welcome To Zombie Land</h2>
-
-          <p>Players: {players}</p>
-        </header>
-
-        <p>
-          X: <span>{x}</span>, Y: <span>{y}</span>
-        </p>
-
-        <code>[PLACE GAME VIEW HERE]</code>
-
-        <footer>
-          <p>Infected: {infected}</p>
-          <p>
-            Are You Infected?{' '}
-            {infectious ? 'EAT BRAIN...' : 'Naaa You Still Good! RUN!'}
-          </p>
-
-          <button type="button" onClick={() => socket.disconnect()}>
-            Get Me Out Of Here...!
-          </button>
-        </footer>
-      </section>
-    ) : (
-      <button type="button" onClick={() => socket.connect()}>
-        Step Inside, But Tread Lightly..
-      </button>
-    );
-  }
-}
-
-const ManHunt = io('/hunt', {
-  autoConnect: false,
-})(ZombieLand);
-
-const Root = () => (
-  <Provider store={store}>
-    <ManHunt />
-  </Provider>
-);
-
-render(<Root />, document.getElementById('root'));
+```sh
+npm run examples:dev
 ```
 
-#### Connect Everyone With The Back End:
+Open http://127.0.0.1:5173 in two tabs. Send a message to see broadcasts and acknowledgements. Disconnect and reconnect to load the server's recent history. Stop both processes with Ctrl+C.
 
-**/server.js**
+Vite proxies `/socket.io` to the local server on port 3000, including WebSocket upgrades. The server binds to localhost. This is a development demo, not an authenticated production chat service. History is in memory, limited to 100 messages, and disappears when the server restarts.
 
-```javascript
-const http = require('http');
+## Code
 
-const server = http.createServer();
+- `events.ts` defines shared client/server events and acknowledgement payloads.
+- `server.ts` validates messages and broadcasts them through a typed Socket.IO server.
+- `store.ts` keeps serializable messages and presence counts in Redux Toolkit.
+- `App.tsx` injects a typed socket with `withSocket<ServerEvents, ClientEvents>()`. Lifecycle callbacks register listeners and dispatch Redux actions. `closeOnUnmount` cleans up the connection.
 
-server.listen(process.env.PORT, error => {
-  if (error === undefined) {
-    const io = require('socket.io')(server);
+`npm run examples:dev` builds the library before starting Vite. After changing library code, rerun `npm run build`; example source edits reload automatically.
 
-    const hunt = io.of('/hunt');
+## Validation
 
-    const players = new Map();
-    const positions = new Map();
-    const infected = new Set();
+`npm run check` includes strict TypeScript checking, a production Vite build, and real-server tests of the example UI, acknowledgements, broadcasts, history, disconnect/reconnect, and unmount cleanup. Package tests compile both ESM and CommonJS consumers against the unpacked npm tarball and reject invalid event names, payloads, callbacks, and component props.
 
-    hunt.on('connect', socket => {
-      players.set(socket.id, [0, 0]);
-
-      hunt.emit('count', players.size);
-
-      socket
-        .on('position', (x, y) => {
-          const coords = [x, y];
-
-          const infectious = infected.has(socket.id);
-
-          if (positions.has(coords)) {
-            const position = positions.get(coords);
-
-            if (infectious) {
-              const victims = (position || []).filter(
-                id => infected.has(id) === false,
-              );
-
-              victims.forEach(id => {
-                infected.add(id);
-                hunt.to(id).emit('infectious', true);
-              });
-
-              if (victims.length) hunt.emit('infected', infected.size);
-            } else {
-              const vermin = (position || []).filter(id => infected.has(id));
-
-              if (vermin.length) {
-                infected.add(socket.id);
-
-                socket.emit('infectious', true);
-                hunt.emit('infected', infected.size);
-              }
-            }
-
-            position.push(socket.id);
-
-            positions.set(coords, position);
-          } else positions.set(coords, [socket.id]);
-
-          const current = players.get(socket.id);
-          const position = positions.get(current);
-
-          positions.set(
-            current,
-            (position || []).filter(id => id !== socket.id),
-          );
-
-          players.set(socket.id, coords);
-        })
-        .on('disconnect', () => {
-          const current = players.get(socket.id);
-          const position = positions.get(current);
-
-          if (position) {
-            position.splice(position.indexOf(socket.id), 1);
-
-            positions.set(current, position);
-          }
-
-          infected.delete(socket.id);
-
-          players.delete(socket.id);
-
-          hunt.emit('count', players.size);
-        });
-    });
-  }
-});
-```
+`npm run examples:build` writes ignored static assets to `examples/dist`. It does not bundle the server or deploy either process. A production host would need to serve those assets and proxy `/socket.io` to the server.

@@ -2,13 +2,13 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['tests/**/*.test.js'],
+    include: ['tests/**/*.test.{js,ts,tsx}'],
     environment: 'jsdom',
     setupFiles: ['tests/setup.js'],
     testTimeout: 10000,
     coverage: {
       provider: 'v8',
-      include: ['lib/**/*.js'],
+      include: ['lib/**/*.ts'],
       reporter: ['text', 'lcov'],
       thresholds: {
         statements: 100,

@@ -19,6 +19,6 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - run: npm install --no-save --package-lock=false react@${{ matrix.react }} react-dom@${{ matrix.react }}
+      - run: npm install --no-save --package-lock=false react@${{ matrix.react }} react-dom@${{ matrix.react }} @types/react@${{ matrix.react }} @types/react-dom@${{ matrix.react }}
       - run: npm run check
       - run: npm pack --dry-run
