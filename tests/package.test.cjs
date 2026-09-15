@@ -37,6 +37,12 @@ test('the npm tarball loads through native CommonJS and ESM package exports', ()
       'dist/redux.io.d.mts',
       'lib/index.ts',
       'lib/types.ts',
+      'dist/react.js',
+      'dist/react.mjs',
+      'dist/react.d.ts',
+      'dist/react.d.mts',
+      'lib/react.ts',
+      'lib/useSocket.ts',
     ]) {
       assert.ok(
         packed.files.some(entry => entry.path === file),
@@ -185,6 +191,87 @@ test('the npm tarball loads through native CommonJS and ESM package exports', ()
         errors.length,
         7,
         `Expected seven rejected type errors (${type}):\n${diagnostics}`,
+      );
+      assert.ok(
+        errors.every(line => /(?:^|\/)consumer\.tsx\(/.test(line)),
+        diagnostics,
+      );
+    }
+    for (const dependency of [
+      'redux',
+      'react-redux',
+      '@reduxjs',
+      '@types/hoist-non-react-statics',
+      'hoist-non-react-statics',
+    ]) {
+      rmSync(path.join(modules, dependency), { recursive: true, force: true });
+    }
+    const manifest = JSON.parse(
+      readFileSync(path.join(directory, 'package/package.json'), 'utf8'),
+    );
+    assert.equal(manifest.peerDependenciesMeta.redux.optional, true);
+    assert.equal(manifest.peerDependenciesMeta['react-redux'].optional, true);
+    for (const file of ['react.js', 'react.mjs', 'react.d.ts', 'react.d.mts']) {
+      assert.doesNotMatch(
+        readFileSync(path.join(directory, 'package/dist', file), 'utf8'),
+        /redux|hoist-non-react-statics/,
+      );
+    }
+    execFileSync(
+      process.execPath,
+      [
+        '-e',
+        "const assert = require('node:assert/strict'); for (const dependency of ['redux', 'react-redux']) assert.throws(() => require.resolve(dependency), { code: 'MODULE_NOT_FOUND' }); assert.equal(typeof require('redux.io/react').useSocket, 'function');",
+      ],
+      { cwd: directory },
+    );
+    execFileSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        "import { useSocket } from 'redux.io/react'; if (typeof useSocket !== 'function') throw new Error('Missing hook');",
+      ],
+      { cwd: directory },
+    );
+    for (const type of ['module', 'commonjs']) {
+      writeFileSync(
+        path.join(directory, 'package.json'),
+        JSON.stringify({ type }),
+      );
+      writeFileSync(
+        path.join(directory, 'consumer.tsx'),
+        readFileSync(path.join(__dirname, 'types/react-consumer.tsx')),
+      );
+      writeFileSync(
+        path.join(directory, 'source.ts'),
+        "export { useSocket } from 'redux.io/react/source'; export type { UseSocketResult } from 'redux.io/react/source';",
+      );
+      execFileSync(process.execPath, [compiler, '-p', directory], {
+        cwd: directory,
+        stdio: 'pipe',
+      });
+      writeFileSync(
+        path.join(directory, 'consumer.tsx'),
+        readFileSync(path.join(__dirname, 'types/react-invalid.tsx')),
+      );
+      let diagnostics = '';
+      try {
+        execFileSync(
+          process.execPath,
+          [compiler, '-p', directory, '--pretty', 'false'],
+          { cwd: directory, stdio: 'pipe' },
+        );
+      } catch (error) {
+        diagnostics = error.stdout.toString();
+      }
+      const errors = diagnostics
+        .split('\n')
+        .filter(line => line.includes('error TS'));
+      assert.equal(
+        errors.length,
+        6,
+        `Expected six React hook type errors (${type}):\n${diagnostics}`,
       );
       assert.ok(
         errors.every(line => /(?:^|\/)consumer\.tsx\(/.test(line)),

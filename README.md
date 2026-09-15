@@ -9,15 +9,78 @@
 
 React and Redux bindings for Socket.IO.
 
-This modernization targets React 18/19, React Redux 9, Redux 5, and Socket.IO 4. The package keeps the `withSocket` API and adds client configuration outside Redux state for Redux Toolkit applications.
+This modernization targets React 18/19 and Socket.IO 4. Use `redux.io/react` for a React-only hook, or the package root for the existing `withSocket` API with React Redux 9 and Redux 5.
 
 ## Install
+
+For the React-only hook:
+
+```sh
+npm install redux.io socket.io-client react react-dom
+```
+
+For the existing Redux bindings:
 
 ```sh
 npm install redux.io socket.io-client react react-dom react-redux @reduxjs/toolkit
 ```
 
 Development and CI require Node 22.22.2+, 24.15+, or 26+. Both native ESM and CommonJS imports are supported. A UMD build is available at `dist/redux.io.umd.js` for pages providing the `React` and `ReactRedux` globals.
+
+## React-only hook
+
+```tsx
+import { useEffect, useState } from 'react';
+import { useSocket } from 'redux.io/react';
+
+interface ServerEvents {
+  message: (message: { text: string }) => void;
+}
+interface ClientEvents {
+  'chat:send': (text: string, ack: (result: { ok: boolean }) => void) => void;
+}
+
+function Chat() {
+  const { socket, connected, error } = useSocket<ServerEvents, ClientEvents>();
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (!socket) return;
+    const receive = (incoming: { text: string }) => setMessage(incoming.text);
+    socket.on('message', receive);
+    return () => {
+      socket.off('message', receive);
+    };
+  }, [socket]);
+
+  return (
+    <>
+      <p>{error?.message ?? message}</p>
+      <button
+        disabled={!connected}
+        onClick={() =>
+          socket?.emit('chat:send', 'Hello', result => console.log(result.ok))
+        }
+      >
+        Send
+      </button>
+    </>
+  );
+}
+```
+
+`useSocket<ListenEvents, EmitEvents>(url?, options?)` returns `{ socket, connected, id, error }`. No Redux store or `Provider` is needed. The React entry point and its declarations do not import Redux. Redux and React Redux are optional peers, but remain required when importing the original package root.
+
+- `socket` is a typed native Socket.IO client, initially `null`, including during server rendering. It becomes available after mounting.
+- Each hook owns its connection. Effects create it and disconnect it on unmount; `useReducer` handles state transitions without side effects.
+- Connections start automatically unless `autoConnect: false`. Use `socket?.connect()` and `socket?.disconnect()` for manual control.
+- A successful connection clears `error`. Disconnecting clears `id` and sets `connected` to false. Socket.IO manages automatic reconnection according to its options.
+- Changing `url` or the **options object identity** replaces the connection. Define constant options outside the component or use `useMemo`; do not pass a new inline options object every render.
+- Register application listeners in an effect depending on `socket`, and remove those listeners in its cleanup. Hook cleanup removes all listeners from its owned socket. Development Strict Mode may create, clean up, and recreate a connection.
+
+The `redux.io/react` entry has separate ESM, CommonJS, and declaration builds. `redux.io/react/source` exposes its TypeScript source. It does not change the existing Redux or UMD API. The React entry exports `UseSocketResult`, `SocketOptions`, and `EventsMap` types.
+
+See [React's reducer rules](https://react.dev/reference/react/useReducer) and [Socket.IO's React lifecycle guidance](https://socket.io/how-to/use-with-react).
 
 ## Redux Toolkit example
 

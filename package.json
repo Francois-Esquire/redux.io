@@ -41,6 +41,14 @@
     "redux": "^5.0.0",
     "socket.io-client": "^4.0.0"
   },
+  "peerDependenciesMeta": {
+    "react-redux": {
+      "optional": true
+    },
+    "redux": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@reduxjs/toolkit": "^2.12.0",
@@ -96,6 +104,17 @@
       }
     },
     "./source": "./lib/index.ts",
+    "./react": {
+      "import": {
+        "types": "./dist/react.d.mts",
+        "default": "./dist/react.mjs"
+      },
+      "require": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      }
+    },
+    "./react/source": "./lib/react.ts",
     "./package.json": "./package.json"
   },
   "files": [
