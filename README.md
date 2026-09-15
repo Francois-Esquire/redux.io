@@ -148,6 +148,7 @@ Wrappers without `config.io` read this configuration. This legacy reducer stores
 
 ```sh
 npm ci
+npm run hooks:install
 npm test
 npm run cov
 npm run check
@@ -156,9 +157,35 @@ npm pack --dry-run
 
 `npm run check` runs lint, formatting checks, tests with coverage thresholds, all builds, and tests of the npm tarball's CommonJS, ESM, and UMD entry points. The integration tests start a real Socket.IO server on an OS-assigned localhost port and close every connection after each test.
 
-CI checks Node 22, 24, and 26 with React 18 and 19. Coverage thresholds are 90% for statements, functions, and lines, and 80% for branches. Watch modes are `npm run watch:test` and `npm run watch:build`.
+CI checks Node 22, 24, and 26 with React 18 and 19. Coverage thresholds are 100% for statements, branches, functions, and lines. Watch modes are `npm run watch:test` and `npm run watch:build`.
+
+The `prepack` hook builds ordinary npm packages. CI builds explicitly before packing with `--ignore-scripts`, so packing and publishing the tested artifact do not rerun the build.
 
 Implementation references: [React Redux connect](https://react-redux.js.org/api/connect), [Socket.IO client API](https://socket.io/docs/v4/client-api/), [Socket.IO with React](https://socket.io/how-to/use-with-react), and [Redux side effects](https://redux.js.org/usage/side-effects-approaches).
+
+### Git hooks
+
+Run `npm run hooks:install` once per clone after installing dependencies. Husky runs `lint-staged` before commits to fix lint and formatting issues in staged source, tests, configuration, and release documentation. It preserves unstaged portions of partially staged files. Generated bundles and historical examples are excluded.
+
+Before a push, Husky runs `npm run check`, including the 100% coverage requirements and package smoke tests. CI runs the same checks independently. Hooks run installed local tools; they do not download dependencies.
+
+Hook installation is explicit rather than an npm lifecycle hook. Installing or publishing the package does not configure Git hooks, and the isolated publish job needs no Husky installation.
+
+### Changelog and versioning
+
+[CHANGELOG.md](CHANGELOG.md) is generated from Conventional Commits by `npm run changelog`. The next release is `1.0.0`, which moves the old `0.2.x` API onto the supported framework versions. Detailed migration instructions live in this README.
+
+For each subsequent release:
+
+1. Commit changes using Conventional Commits: `fix(socket): handle disconnects`, `feat(api): add an option`, or `feat(api)!: change connection ownership`. Explain migration requirements in a `BREAKING CHANGE:` commit-body footer.
+2. Choose a major version for incompatible API or supported-runtime changes, minor for compatible features, and patch for compatible fixes.
+3. Run `npm version major --no-git-tag-version --ignore-scripts`, substituting `minor` or `patch` as appropriate. This updates the manifest and lockfile without creating a Git commit or tag.
+4. Run `npm run changelog`, review the generated entry, and run `npm run check`.
+5. Commit and push the release changes when approved. Create a matching `vX.Y.Z` GitHub release and use the generated changelog entry as its release notes. Publishing that release triggers the isolated npm workflow.
+
+The generator groups features, fixes, and breaking changes and links entries to commits. It rebuilds the file from Git history, so repeated runs do not append duplicate releases. Do not edit generated entries by hand; correct the commit metadata or add migration detail here. Uncommitted changes cannot appear in the generated changelog, and generation does not publish a release or create commits or tags. Fetch the full history and release tags before generating notes in a new clone.
+
+Version selection remains explicit; the changelog generator does not bump versions. The current 1.0.0 version is prepared locally and has not been released.
 
 ## Publishing
 

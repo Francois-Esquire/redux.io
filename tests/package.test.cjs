@@ -33,7 +33,9 @@ test('the npm tarball loads through native CommonJS and ESM package exports', ()
     assert.ok(packed.files.some(file => file.path === 'dist/redux.io.mjs'));
     assert.ok(
       packed.files.every(file =>
-        /^(dist\/|README.md$|LICENSE$|package.json$)/.test(file.path),
+        /^(dist\/|README.md$|CHANGELOG.md$|LICENSE$|package.json$)/.test(
+          file.path,
+        ),
       ),
     );
     execFileSync('tar', [
@@ -64,6 +66,14 @@ test('the npm tarball loads through native CommonJS and ESM package exports', ()
     );
     const publishedPackage = publication['redux.io'] ?? publication;
     assert.equal(publishedPackage.name, 'redux.io');
+    assert.equal(
+      publishedPackage.version,
+      JSON.parse(readFileSync(path.join(__dirname, '../package.json'), 'utf8'))
+        .version,
+    );
+    assert.ok(
+      publishedPackage.files.some(file => file.path === 'CHANGELOG.md'),
+    );
     assert.ok(
       publishedPackage.files.some(file => file.path === 'dist/redux.io.mjs'),
     );

@@ -10,7 +10,12 @@ export default defineConfig({
       provider: 'v8',
       include: ['lib/**/*.js'],
       reporter: ['text', 'lcov'],
-      thresholds: { statements: 90, branches: 80, functions: 90, lines: 90 },
+      thresholds: {
+        statements: 100,
+        branches: 100,
+        functions: 100,
+        lines: 100,
+      },
     },
   },
 });

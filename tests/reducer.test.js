@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+import { io } from 'socket.io-client';
 import reducer from '../lib/reducer';
 import * as types from '../lib/constants';
 import { createClient } from './helpers/socket';
@@ -40,6 +41,27 @@ it('merges defaults immutably', () => {
   });
   expect(next.defaults).toEqual({ reconnection: false, timeout: 50 });
   expect(state.defaults).toEqual({ reconnection: false });
+});
+
+it('removes all listeners for an event when OFF omits its callback', () => {
+  const reduce = reducer(io, { autoConnect: false });
+  const namespace = 'http://localhost/chat';
+  const state = reduce(undefined, { type: types.CREATE, nsp: namespace });
+  const socket = state[namespace];
+  const first = () => {};
+  const second = () => {};
+  try {
+    socket.on('hello', first).on('hello', second).on('other', first);
+    expect(socket.listeners('hello')).toEqual([first, second]);
+    expect(
+      reduce(state, { type: types.OFF, nsp: namespace, event: 'hello' }),
+    ).toBe(state);
+    expect(socket.listeners('hello')).toEqual([]);
+    expect(socket.listeners('other')).toEqual([first]);
+  } finally {
+    socket.removeAllListeners();
+    socket.disconnect();
+  }
 });
 
 it('creates once and operates on the returned socket using public methods', () => {
