@@ -15,9 +15,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -25,6 +29,28 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Generate release documentation
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          if [ "$EVENT_NAME" = "release" ] && [ "$RELEASE_TAG" != "$TAG" ]; then
+            echo "Release tag must match package version: $TAG" >&2
+            exit 1
+          fi
+          PRERELEASE=false
+          if [[ "$VERSION" == *-* ]] || [ "$RELEASE_PRERELEASE" = "true" ]; then
+            PRERELEASE=true
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          npm run changelog
+          mkdir -p artifact
+          node release-notes.mjs artifact/release-notes.md
       - name: Test and build
         run: npm run check
       - name: Pack the tested build
@@ -35,13 +61,17 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: npm-package
-          path: artifact/package.tgz
+          path: |
+            artifact/package.tgz
+            artifact/release-notes.md
           if-no-files-found: error
           retention-days: 7
 
   publish:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/setup-node@v4
         with:
@@ -54,12 +84,28 @@ jobs:
       - name: Unpack the built package
         run: tar -xzf artifact/package.tgz
       - name: Publish when a token is available
+        id: npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_DIST_TAG: ${{ github.event.release.prerelease && 'next' || 'latest' }}
+          NPM_DIST_TAG: ${{ needs.build.outputs.prerelease == 'true' && 'next' || 'latest' }}
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
             echo "NPM_TOKEN is not configured; skipping publication." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           npm publish ./package --ignore-scripts --access public --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org
+          echo "published=true" >> "$GITHUB_OUTPUT"
+      - name: Create or update GitHub release notes
+        if: steps.npm.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          RELEASE_SHA: ${{ github.sha }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        run: |
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --notes-file artifact/release-notes.md
+          else
+            gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" --title "$RELEASE_TAG" --notes-file artifact/release-notes.md --prerelease="$PRERELEASE"
+          fi

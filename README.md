@@ -1,5 +1,12 @@
 # redux.io
 
+[![CI](https://github.com/Francois-Esquire/redux.io/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/Francois-Esquire/redux.io/actions/workflows/ci.yml?query=branch%3Amain)
+[![npm version](https://img.shields.io/npm/v/redux.io)](https://www.npmjs.com/package/redux.io)
+[![Coverage requirement: 100%](https://img.shields.io/badge/coverage_gate-100%25-brightgreen)](vitest.config.mjs)
+[![React 18 and 19](https://img.shields.io/badge/React-18%20%7C%2019-61dafb)](#migration-from-02x)
+[![Socket.IO 4](https://img.shields.io/badge/Socket.IO-4-010101)](#api)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 React and Redux bindings for Socket.IO.
 
 This modernization targets React 18/19, React Redux 9, Redux 5, and Socket.IO 4. The package keeps the `withSocket` API and adds client configuration outside Redux state for Redux Toolkit applications.
@@ -193,10 +200,12 @@ The `Publish to npm` workflow runs manually from GitHub Actions or when a GitHub
 
 The workflow uses two jobs on separate runners:
 
-1. **Build:** install dependencies, run the full checks, and upload the built npm tarball. This job never receives the npm token.
-2. **Publish:** download and unpack that tarball on a fresh runner, then run `npm publish --ignore-scripts`. This job does not check out source, restore dependency caches, install dependencies, or run package lifecycle scripts. Only its final publish step receives the token.
+1. **Build:** install dependencies, regenerate the changelog from full Git history, extract notes for the package version, run the full checks, and upload the built npm tarball and `release-notes.md`. This job never receives the npm token.
+2. **Publish:** download and unpack that tarball on a fresh runner, then run `npm publish --ignore-scripts`. This job does not check out source, restore dependency caches, install dependencies, or run package lifecycle scripts. Only the npm publish step receives the npm token.
 
-Update the package version and lockfile before publishing. Stable releases and manual runs publish with the `latest` tag; GitHub prereleases use `next`. npm rejects versions that have already been published.
+After npm publishing succeeds, a separate step uses GitHub's token to create a release at the built commit or replace the matching release's description with the generated notes. The npm token is not passed to that step. Manual runs can therefore publish both npm and GitHub releases; runs triggered by an existing release update its notes. If no npm token is configured, the documentation remains available in the workflow artifact without creating or updating a GitHub release.
+
+Update the package version and lockfile before publishing. GitHub release tags must match `v` followed by the package version. Stable versions use npm's `latest` tag; prerelease versions and GitHub prereleases use `next`. npm rejects versions that have already been published.
 
 The lifecycle-script boundary uses npm's documented [ignore-scripts option](https://docs.npmjs.com/cli/v11/using-npm/config/#ignore-scripts).
 
