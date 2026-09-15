@@ -1,3 +1,7 @@
+## Historical demo
+
+This application uses the original React 16 and Socket.IO 2 dependency graph. It is not part of the modern package's test or support matrix. See the [root README](../README.md) for the current React 18/19 and Redux Toolkit integration.
+
 ## Making The Killer App:
 
 **/store.js**

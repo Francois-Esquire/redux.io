@@ -1,81 +1,56 @@
 {
   "name": "redux.io",
-  "description": "redux/react binding for websockets",
-  "keywords": ["websocket", "socket.io", "react", "redux"],
+  "description": "React and Redux bindings for Socket.IO",
+  "keywords": [
+    "websocket",
+    "socket.io",
+    "react",
+    "redux"
+  ],
   "version": "0.2.1",
   "main": "dist/redux.io.js",
-  "browser": "dist/redux.io.umd.js",
-  "module": "dist/redux.io.es.js",
-  "esm": {
-    "mode": "auto",
-    "cjs": true,
-    "await": true,
-    "cache": true,
-    "sourceMap": true,
-    "debug": true
-  },
-  "ava": {
-    "babel": false,
-    "compileEnhancements": false,
-    "require": ["esm", "./tests/register.js"],
-    "files": ["tests/**/*.test.js"],
-    "sources": ["lib/**/*.{js,jsx}"]
-  },
+  "module": "dist/redux.io.mjs",
   "scripts": {
     "prepare": "npm run build",
-    "prepublish": "run-s build test",
-    "build": "rollup -c",
-    "cov": "nyc npm t",
-    "test": "ava --verbose",
-    "dev": "run-p watch:*",
-    "watch:test": "npm t -- --watch",
-    "watch:build": "npm run build -- -w",
-    "examples": "npm run --prefix examples start"
+    "prepublishOnly": "npm run check",
+    "build": "rollup -c && prettier --write dist",
+    "test": "vitest run",
+    "cov": "vitest run --coverage",
+    "lint": "eslint lib tests *.mjs",
+    "format:check": "prettier --check lib tests *.mjs package.json README.md .github/workflows",
+    "check": "npm run lint && npm run format:check && npm run cov && npm run build && npm run test:package",
+    "test:package": "node --test tests/package.test.cjs",
+    "watch:test": "vitest",
+    "watch:build": "rollup -c -w"
   },
   "dependencies": {
-    "hoist-non-react-statics": "^2.5.0"
+    "hoist-non-react-statics": "^3.3.2"
   },
   "peerDependencies": {
-    "prop-types": ">=15.0.0",
-    "react": ">=15.0.0-0 || ^16.0.0-0",
-    "react-redux": "^4.3.0 || ^5.0.0",
-    "redux": "^3.0.0-0 || ^4.0.0-0"
+    "react": "^18.0.0 || ^19.0.0",
+    "react-redux": "^9.0.0",
+    "redux": "^5.0.0",
+    "socket.io-client": "^4.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.0.0-beta.46",
-    "@babel/preset-react": "^7.0.0-beta.46",
-    "@babel/register": "^7.0.0-beta.46",
-    "ava": "^1.0.0-beta.4",
-    "babel-eslint": "^8.2.3",
-    "cross-env": "^5.1.4",
-    "enzyme": "^3.3.0",
-    "enzyme-adapter-react-16": "^1.1.1",
-    "eslint": "^4.19.1",
-    "eslint-config-airbnb": "^16.1.0",
-    "eslint-config-prettier": "^2.9.0",
-    "eslint-plugin-ava": "^4.5.1",
-    "eslint-plugin-babel": "^5.1.0",
-    "eslint-plugin-import": "^2.11.0",
-    "eslint-plugin-jsx-a11y": "^6.0.3",
-    "eslint-plugin-prettier": "^2.6.0",
-    "eslint-plugin-react": "^7.7.0",
-    "esm": "^3.0.28",
-    "jsdom": "^11.10.0",
-    "npm-run-all": "^4.1.2",
-    "nyc": "^11.7.1",
-    "prettier": "^1.12.1",
-    "prop-types": "^15.6.1",
-    "react": "^16.3.2",
-    "react-dom": "^16.3.2",
-    "react-redux": "^5.0.7",
-    "redux": "^3.7.2",
-    "rollup": "^0.57.1",
-    "rollup-plugin-buble": "^0.19.2",
-    "rollup-plugin-commonjs": "^9.1.2",
-    "rollup-plugin-node-resolve": "^3.3.0",
-    "rollup-plugin-re": "^1.0.7",
-    "socket.io": "^2.1.0",
-    "socket.io-client": "^2.1.0"
+    "@eslint/js": "^10.0.1",
+    "@reduxjs/toolkit": "^2.12.0",
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-replace": "^6.0.0",
+    "@testing-library/react": "^16.3.3",
+    "@vitest/coverage-v8": "^5.0.0",
+    "eslint": "^10.10.0",
+    "jsdom": "^30.0.1",
+    "prettier": "^3.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-redux": "^9.3.0",
+    "redux": "^5.0.1",
+    "rollup": "^4.63.3",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "vitest": "^5.0.0"
   },
   "repository": {
     "type": "git",
@@ -86,5 +61,22 @@
   },
   "homepage": "https://github.com/Francois-Esquire/redux.io#readme",
   "author": "Michael Tobia",
-  "license": "MIT"
+  "license": "MIT",
+  "unpkg": "dist/redux.io.umd.js",
+  "exports": {
+    ".": {
+      "import": "./dist/redux.io.mjs",
+      "require": "./dist/redux.io.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  }
 }

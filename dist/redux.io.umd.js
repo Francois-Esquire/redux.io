@@ -1,354 +1,410 @@
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('react'), require('prop-types'), require('react-redux')) :
-  typeof define === 'function' && define.amd ? define(['exports', 'react', 'prop-types', 'react-redux'], factory) :
-  (factory((global.redux = global.redux || {}, global.redux.io = {}),global.React,global.PropTypes,global.reactRedux));
-}(this, (function (exports,React,PropTypes,reactRedux) { 'use strict';
+  typeof exports === 'object' && typeof module !== 'undefined'
+    ? factory(exports, require('react'), require('react-redux'))
+    : typeof define === 'function' && define.amd
+      ? define(['exports', 'react', 'react-redux'], factory)
+      : ((global =
+          typeof globalThis !== 'undefined' ? globalThis : global || self),
+        factory(
+          ((global.redux = global.redux || {}), (global.redux.io = {})),
+          global.React,
+          global.ReactRedux,
+        ));
+})(this, function (exports, React, reactRedux) {
+  'use strict';
 
-  React = React && React.hasOwnProperty('default') ? React['default'] : React;
-  PropTypes = PropTypes && PropTypes.hasOwnProperty('default') ? PropTypes['default'] : PropTypes;
+  const prefix = '@@io';
 
-  var prefix = '@@io';
+  const CREATE = `${prefix}/create`;
+  const CONNECT = `${prefix}/connect`;
+  const DISCONNECT = `${prefix}/disconnect`;
+  const ON = `${prefix}/on`;
+  const OFF = `${prefix}/off`;
+  const ONCE = `${prefix}/once`;
+  const DEFAULTS = `${prefix}/defaults`;
 
-  var CREATE = prefix + "/create";
-  var CONNECT = prefix + "/connect";
-  var DISCONNECT = prefix + "/disconnect";
-  var ON = prefix + "/on";
-  var OFF = prefix + "/off";
-  var ONCE = prefix + "/once";
-  var DEFAULTS = prefix + "/defaults";
+  function reducer(io, defaults = {}) {
+    if (typeof io !== 'function') {
+      throw new Error(
+        'Please make sure you are passing in socket.io to the reducer.',
+      );
+    }
 
-  function reducer(io, defaults) {
-    if (io === undefined)
-      { throw new Error(
-        'Please make sure you are passing in socket.io to the reducer.'
-      ); }
+    const initialState = { io, defaults: { ...defaults } };
 
-    var initialState = {
-      io: io,
-      defaults: defaults,
+    return function socketReducer(state = initialState, action) {
+      const { type, nsp } = action;
+      switch (type) {
+        case CREATE: {
+          if (Object.hasOwn(state, nsp)) return state;
+          const socket = io(nsp, { ...state.defaults, ...action.options });
+          return { ...state, [nsp]: socket };
+        }
+        case DEFAULTS:
+          return {
+            ...state,
+            defaults: { ...state.defaults, ...action.options },
+          };
+        case CONNECT:
+        case DISCONNECT:
+        case ON:
+        case OFF:
+        case ONCE: {
+          const socket = Object.hasOwn(state, nsp) ? state[nsp] : undefined;
+          if (!socket || nsp === 'io' || nsp === 'defaults') return state;
+          if (type === CONNECT) socket.open();
+          else if (type === DISCONNECT) socket.close();
+          else {
+            const method = { [ON]: 'on', [OFF]: 'off', [ONCE]: 'once' }[type];
+            if (action.callback === undefined) socket[method](action.event);
+            else socket[method](action.event, action.callback);
+          }
+          return state;
+        }
+        default:
+          return state;
+      }
     };
+  }
 
-    var regexp = new RegExp(("^" + prefix + "/"));
+  function getDefaultExportFromCjs(x) {
+    return x &&
+      x.__esModule &&
+      Object.prototype.hasOwnProperty.call(x, 'default')
+      ? x['default']
+      : x;
+  }
 
-    return function socketReducer(state, action) {
-      var obj;
+  var reactIs = { exports: {} };
 
-      if ( state === void 0 ) state = initialState;
-      if (regexp.test(action.type)) {
-        var type = action.type;
-        var nsp = action.nsp;
-        var uri = action.uri;
+  var reactIs_production_min = {};
 
-        switch (type) {
-          default:
-            return state;
-          case CREATE: {
-            var options = action.options;
+  /** @license React v16.13.1
+   * react-is.production.min.js
+   *
+   * Copyright (c) Facebook, Inc. and its affiliates.
+   *
+   * This source code is licensed under the MIT license found in the
+   * LICENSE file in the root directory of this source tree.
+   */
 
-            var socket = io.connect(nsp, options);
+  var hasRequiredReactIs_production_min;
 
-            return Object.assign({}, state, ( obj = {}, obj[nsp] = socket, obj));
-          }
-          case CONNECT: {
-            var manager = io.managers[uri.replace(nsp)];
-            var socket$1 = manager.nsps[nsp];
-
-            if (socket$1) { socket$1.open(); }
-
-            break;
-          }
-          case DISCONNECT: {
-            var manager$1 = io.managers[uri.replace(nsp)];
-            var socket$2 = manager$1.nsps[nsp];
-
-            if (socket$2 && socket$2.connected) { socket$2.close(); }
-
-            break;
-          }
-          case ON:
-          case OFF:
-          case ONCE: {
-            var manager$2 = io.managers[uri.replace(nsp)];
-            var socket$3 = manager$2.nsps[nsp];
-
-            if (socket$3) {
-              var event = action.event;
-              var callback = action.callback;
-              switch (type) {
-                default:
-                  break;
-                case ON:
-                  socket$3.on(event, callback);
-                  break;
-                case OFF:
-                  socket$3.off(event, callback);
-                  break;
-                case ONCE:
-                  socket$3.once(event, callback);
-                  break;
-              }
+  function requireReactIs_production_min() {
+    if (hasRequiredReactIs_production_min) return reactIs_production_min;
+    hasRequiredReactIs_production_min = 1;
+    var b = 'function' === typeof Symbol && Symbol.for,
+      c = b ? Symbol.for('react.element') : 60103,
+      d = b ? Symbol.for('react.portal') : 60106,
+      e = b ? Symbol.for('react.fragment') : 60107,
+      f = b ? Symbol.for('react.strict_mode') : 60108,
+      g = b ? Symbol.for('react.profiler') : 60114,
+      h = b ? Symbol.for('react.provider') : 60109,
+      k = b ? Symbol.for('react.context') : 60110,
+      l = b ? Symbol.for('react.async_mode') : 60111,
+      m = b ? Symbol.for('react.concurrent_mode') : 60111,
+      n = b ? Symbol.for('react.forward_ref') : 60112,
+      p = b ? Symbol.for('react.suspense') : 60113,
+      q = b ? Symbol.for('react.suspense_list') : 60120,
+      r = b ? Symbol.for('react.memo') : 60115,
+      t = b ? Symbol.for('react.lazy') : 60116,
+      v = b ? Symbol.for('react.block') : 60121,
+      w = b ? Symbol.for('react.fundamental') : 60117,
+      x = b ? Symbol.for('react.responder') : 60118,
+      y = b ? Symbol.for('react.scope') : 60119;
+    function z(a) {
+      if ('object' === typeof a && null !== a) {
+        var u = a.$$typeof;
+        switch (u) {
+          case c:
+            switch (((a = a.type), a)) {
+              case l:
+              case m:
+              case e:
+              case g:
+              case f:
+              case p:
+                return a;
+              default:
+                switch (((a = a && a.$$typeof), a)) {
+                  case k:
+                  case n:
+                  case t:
+                  case r:
+                  case h:
+                    return a;
+                  default:
+                    return u;
+                }
             }
-            break;
-          }
-          case DEFAULTS: {
-            var options$1 = action.options;
+          case d:
+            return u;
+        }
+      }
+    }
+    function A(a) {
+      return z(a) === m;
+    }
+    reactIs_production_min.AsyncMode = l;
+    reactIs_production_min.ConcurrentMode = m;
+    reactIs_production_min.ContextConsumer = k;
+    reactIs_production_min.ContextProvider = h;
+    reactIs_production_min.Element = c;
+    reactIs_production_min.ForwardRef = n;
+    reactIs_production_min.Fragment = e;
+    reactIs_production_min.Lazy = t;
+    reactIs_production_min.Memo = r;
+    reactIs_production_min.Portal = d;
+    reactIs_production_min.Profiler = g;
+    reactIs_production_min.StrictMode = f;
+    reactIs_production_min.Suspense = p;
+    reactIs_production_min.isAsyncMode = function (a) {
+      return A(a) || z(a) === l;
+    };
+    reactIs_production_min.isConcurrentMode = A;
+    reactIs_production_min.isContextConsumer = function (a) {
+      return z(a) === k;
+    };
+    reactIs_production_min.isContextProvider = function (a) {
+      return z(a) === h;
+    };
+    reactIs_production_min.isElement = function (a) {
+      return 'object' === typeof a && null !== a && a.$$typeof === c;
+    };
+    reactIs_production_min.isForwardRef = function (a) {
+      return z(a) === n;
+    };
+    reactIs_production_min.isFragment = function (a) {
+      return z(a) === e;
+    };
+    reactIs_production_min.isLazy = function (a) {
+      return z(a) === t;
+    };
+    reactIs_production_min.isMemo = function (a) {
+      return z(a) === r;
+    };
+    reactIs_production_min.isPortal = function (a) {
+      return z(a) === d;
+    };
+    reactIs_production_min.isProfiler = function (a) {
+      return z(a) === g;
+    };
+    reactIs_production_min.isStrictMode = function (a) {
+      return z(a) === f;
+    };
+    reactIs_production_min.isSuspense = function (a) {
+      return z(a) === p;
+    };
+    reactIs_production_min.isValidElementType = function (a) {
+      return (
+        'string' === typeof a ||
+        'function' === typeof a ||
+        a === e ||
+        a === m ||
+        a === g ||
+        a === f ||
+        a === p ||
+        a === q ||
+        ('object' === typeof a &&
+          null !== a &&
+          (a.$$typeof === t ||
+            a.$$typeof === r ||
+            a.$$typeof === h ||
+            a.$$typeof === k ||
+            a.$$typeof === n ||
+            a.$$typeof === w ||
+            a.$$typeof === x ||
+            a.$$typeof === y ||
+            a.$$typeof === v))
+      );
+    };
+    reactIs_production_min.typeOf = z;
+    return reactIs_production_min;
+  }
 
-            Object.assign(state.defaults, options$1);
+  var hasRequiredReactIs;
 
-            break;
+  function requireReactIs() {
+    if (hasRequiredReactIs) return reactIs.exports;
+    hasRequiredReactIs = 1;
+
+    {
+      reactIs.exports = requireReactIs_production_min();
+    }
+    return reactIs.exports;
+  }
+
+  var hoistNonReactStatics_cjs;
+  var hasRequiredHoistNonReactStatics_cjs;
+
+  function requireHoistNonReactStatics_cjs() {
+    if (hasRequiredHoistNonReactStatics_cjs) return hoistNonReactStatics_cjs;
+    hasRequiredHoistNonReactStatics_cjs = 1;
+
+    var reactIs = requireReactIs();
+
+    /**
+     * Copyright 2015, Yahoo! Inc.
+     * Copyrights licensed under the New BSD License. See the accompanying LICENSE file for terms.
+     */
+    var REACT_STATICS = {
+      childContextTypes: true,
+      contextType: true,
+      contextTypes: true,
+      defaultProps: true,
+      displayName: true,
+      getDefaultProps: true,
+      getDerivedStateFromError: true,
+      getDerivedStateFromProps: true,
+      mixins: true,
+      propTypes: true,
+      type: true,
+    };
+    var KNOWN_STATICS = {
+      name: true,
+      length: true,
+      prototype: true,
+      caller: true,
+      callee: true,
+      arguments: true,
+      arity: true,
+    };
+    var FORWARD_REF_STATICS = {
+      $$typeof: true,
+      render: true,
+      defaultProps: true,
+      displayName: true,
+      propTypes: true,
+    };
+    var MEMO_STATICS = {
+      $$typeof: true,
+      compare: true,
+      defaultProps: true,
+      displayName: true,
+      propTypes: true,
+      type: true,
+    };
+    var TYPE_STATICS = {};
+    TYPE_STATICS[reactIs.ForwardRef] = FORWARD_REF_STATICS;
+    TYPE_STATICS[reactIs.Memo] = MEMO_STATICS;
+
+    function getStatics(component) {
+      // React v16.11 and below
+      if (reactIs.isMemo(component)) {
+        return MEMO_STATICS;
+      } // React v16.12 and above
+
+      return TYPE_STATICS[component['$$typeof']] || REACT_STATICS;
+    }
+
+    var defineProperty = Object.defineProperty;
+    var getOwnPropertyNames = Object.getOwnPropertyNames;
+    var getOwnPropertySymbols = Object.getOwnPropertySymbols;
+    var getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+    var getPrototypeOf = Object.getPrototypeOf;
+    var objectPrototype = Object.prototype;
+    function hoistNonReactStatics(targetComponent, sourceComponent, blacklist) {
+      if (typeof sourceComponent !== 'string') {
+        // don't hoist over string (html) components
+        if (objectPrototype) {
+          var inheritedComponent = getPrototypeOf(sourceComponent);
+
+          if (inheritedComponent && inheritedComponent !== objectPrototype) {
+            hoistNonReactStatics(
+              targetComponent,
+              inheritedComponent,
+              blacklist,
+            );
           }
         }
 
-        return Object.assign({}, state);
-      }
-      return state;
-    };
-  }
+        var keys = getOwnPropertyNames(sourceComponent);
 
-  var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+        if (getOwnPropertySymbols) {
+          keys = keys.concat(getOwnPropertySymbols(sourceComponent));
+        }
 
-  function createCommonjsModule(fn, module) {
-  	return module = { exports: {} }, fn(module, module.exports), module.exports;
-  }
+        var targetStatics = getStatics(targetComponent);
+        var sourceStatics = getStatics(sourceComponent);
 
-  var hoistNonReactStatics = createCommonjsModule(function (module, exports) {
-  /**
-   * Copyright 2015, Yahoo! Inc.
-   * Copyrights licensed under the New BSD License. See the accompanying LICENSE file for terms.
-   */
-  (function (global, factory) {
-      module.exports = factory();
-  }(commonjsGlobal, (function () {
-      
-      var REACT_STATICS = {
-          childContextTypes: true,
-          contextTypes: true,
-          defaultProps: true,
-          displayName: true,
-          getDefaultProps: true,
-          getDerivedStateFromProps: true,
-          mixins: true,
-          propTypes: true,
-          type: true
-      };
-      
-      var KNOWN_STATICS = {
-          name: true,
-          length: true,
-          prototype: true,
-          caller: true,
-          callee: true,
-          arguments: true,
-          arity: true
-      };
-      
-      var defineProperty = Object.defineProperty;
-      var getOwnPropertyNames = Object.getOwnPropertyNames;
-      var getOwnPropertySymbols = Object.getOwnPropertySymbols;
-      var getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
-      var getPrototypeOf = Object.getPrototypeOf;
-      var objectPrototype = getPrototypeOf && getPrototypeOf(Object);
-      
-      return function hoistNonReactStatics(targetComponent, sourceComponent, blacklist) {
-          if (typeof sourceComponent !== 'string') { // don't hoist over string (html) components
-              
-              if (objectPrototype) {
-                  var inheritedComponent = getPrototypeOf(sourceComponent);
-                  if (inheritedComponent && inheritedComponent !== objectPrototype) {
-                      hoistNonReactStatics(targetComponent, inheritedComponent, blacklist);
-                  }
-              }
-              
-              var keys = getOwnPropertyNames(sourceComponent);
-              
-              if (getOwnPropertySymbols) {
-                  keys = keys.concat(getOwnPropertySymbols(sourceComponent));
-              }
-              
-              for (var i = 0; i < keys.length; ++i) {
-                  var key = keys[i];
-                  if (!REACT_STATICS[key] && !KNOWN_STATICS[key] && (!blacklist || !blacklist[key])) {
-                      var descriptor = getOwnPropertyDescriptor(sourceComponent, key);
-                      try { // Avoid failures from read-only properties
-                          defineProperty(targetComponent, key, descriptor);
-                      } catch (e) {}
-                  }
-              }
-              
-              return targetComponent;
+        for (var i = 0; i < keys.length; ++i) {
+          var key = keys[i];
+
+          if (
+            !KNOWN_STATICS[key] &&
+            !(blacklist && blacklist[key]) &&
+            !(sourceStatics && sourceStatics[key]) &&
+            !(targetStatics && targetStatics[key])
+          ) {
+            var descriptor = getOwnPropertyDescriptor(sourceComponent, key);
+
+            try {
+              // Avoid failures from read-only properties
+              defineProperty(targetComponent, key, descriptor);
+            } catch (e) {}
           }
-          
-          return targetComponent;
-      };
-  })));
-  });
+        }
+      }
 
-  function objectWithoutProperties (obj, exclude) { var target = {}; for (var k in obj) if (Object.prototype.hasOwnProperty.call(obj, k) && exclude.indexOf(k) === -1) target[k] = obj[k]; return target; }
-
-  var propTypes = {
-    url: PropTypes.string,
-    options: PropTypes.oneOfType([
-      PropTypes.shape({
-        path: PropTypes.string,
-        query: PropTypes.object,
-        forceNew: PropTypes.bool,
-        multiplex: PropTypes.bool,
-        transports: PropTypes.arrayOf(PropTypes.string),
-        reconnection: PropTypes.bool,
-        reconnectionAttempts: PropTypes.number,
-        reconnectionDelay: PropTypes.number,
-        reconnectionDelayMax: PropTypes.number,
-        randomizationFactor: PropTypes.number,
-        timeout: PropTypes.number,
-        autoConnect: PropTypes.bool,
-        parser: PropTypes.object,
-        upgrade: PropTypes.bool,
-        jsonp: PropTypes.bool,
-        forceJSONP: PropTypes.bool,
-        forceBase64: PropTypes.bool,
-        enablesXDR: PropTypes.bool,
-        timestampRequests: PropTypes.bool,
-        timestampParam: PropTypes.string,
-        policyPort: PropTypes.number,
-        transportOptions: PropTypes.object,
-        rememberUpgrade: PropTypes.bool,
-        pfx: PropTypes.string,
-        Key: PropTypes.string,
-        passphrase: PropTypes.string,
-        cert: PropTypes.string,
-      }),
-      PropTypes.func ]),
-    onMount: PropTypes.func,
-    onDismount: PropTypes.func,
-    onConnect: PropTypes.func,
-    onConnectError: PropTypes.func,
-    onConnectTimeout: PropTypes.func,
-    onError: PropTypes.func,
-    onDisconnect: PropTypes.func,
-    onReconnect: PropTypes.func,
-    onReconnectAttempt: PropTypes.func,
-    onReconnectError: PropTypes.func,
-    onReconnectFailed: PropTypes.func,
-    onReconnecting: PropTypes.func,
-    onMessage: PropTypes.func,
-    closeOnUnmount: PropTypes.bool,
-  };
-
-  var defaultProps = {
-    url: undefined,
-    options: undefined,
-    onMount: undefined,
-    onDismount: undefined,
-    onConnect: undefined,
-    onConnectError: undefined,
-    onConnectTimeout: undefined,
-    onError: undefined,
-    onDisconnect: undefined,
-    onReconnect: undefined,
-    onReconnectAttempt: undefined,
-    onReconnectError: undefined,
-    onReconnectFailed: undefined,
-    onReconnecting: undefined,
-    onMessage: undefined,
-    closeOnUnmount: false,
-  };
-
-  function socketConnection(dispatch, factoryOpts) {
-    return function socketPayload(state, props) {
-      var ref = state.socket;
-      var io = ref.io;
-      var defaults = ref.defaults; if ( defaults === void 0 ) defaults = {};
-
-      var url = props.url;
-      var options = props.options;
-      var onMount = props.onMount;
-      var onDismount = props.onDismount;
-      var onConnect = props.onConnect;
-      var onConnectError = props.onConnectError;
-      var onConnectTimeout = props.onConnectTimeout;
-      var onError = props.onError;
-      var onDisconnect = props.onDisconnect;
-      var onReconnect = props.onReconnect;
-      var onReconnectAttempt = props.onReconnectAttempt;
-      var onReconnectError = props.onReconnectError;
-      var onReconnectFailed = props.onReconnectFailed;
-      var onReconnecting = props.onReconnecting;
-      var onMessage = props.onMessage;
-      var closeOnUnmount = props.closeOnUnmount;
-      var children = props.children;
-      var rest = objectWithoutProperties( props, ["url", "options", "onMount", "onDismount", "onConnect", "onConnectError", "onConnectTimeout", "onError", "onDisconnect", "onReconnect", "onReconnectAttempt", "onReconnectError", "onReconnectFailed", "onReconnecting", "onMessage", "closeOnUnmount", "children"] );
-      var ownProps = rest;
-
-      var opts = options || factoryOpts.options;
-
-      var _url = url || factoryOpts.url;
-
-      var _options = Object.assign(
-        {},
-        defaults,
-        typeof opts === 'function' ? opts(ownProps) : opts
-      );
-
-      return {
-        ownProps: ownProps,
-        dispatch: dispatch,
-        onMount: onMount,
-        onDismount: onDismount,
-        onConnect: onConnect,
-        onConnectError: onConnectError,
-        onConnectTimeout: onConnectTimeout,
-        onError: onError,
-        onDisconnect: onDisconnect,
-        onReconnect: onReconnect,
-        onReconnectAttempt: onReconnectAttempt,
-        onReconnectError: onReconnectError,
-        onReconnectFailed: onReconnectFailed,
-        onReconnecting: onReconnecting,
-        onMessage: onMessage,
-        closeOnUnmount: closeOnUnmount,
-        children: children,
-        io: io,
-        url: _url,
-        options: _options,
-      };
-    };
-  }
-
-  function withSocket(url, options) {
-    if (url && typeof url === 'object') {
-      // eslint-disable-next-line no-param-reassign
-      options = url;
-      // eslint-disable-next-line no-param-reassign
-      url = undefined;
+      return targetComponent;
     }
 
-    return function withSocketConnection(WrappedComponent, config) {
-      if ( config === void 0 ) config = {};
+    hoistNonReactStatics_cjs = hoistNonReactStatics;
+    return hoistNonReactStatics_cjs;
+  }
 
-      var alias = config.alias; if ( alias === void 0 ) alias = 'WithSocket';
-      var withRef = config.withRef; if ( withRef === void 0 ) withRef = false;
+  var hoistNonReactStatics_cjsExports = requireHoistNonReactStatics_cjs();
+  var hoistNonReactStatics = /*@__PURE__*/ getDefaultExportFromCjs(
+    hoistNonReactStatics_cjsExports,
+  );
 
-      var displayName =
-        (WrappedComponent || {}).displayName ||
-        (WrappedComponent || {}).name ||
-        'Component';
+  const socketEvents = {
+    connect: 'onConnect',
+    disconnect: 'onDisconnect',
+    connect_error: 'onConnectError',
+    error: 'onError',
+  };
+  const managerEvents = {
+    reconnect: 'onReconnect',
+    reconnect_attempt: 'onReconnectAttempt',
+    reconnect_error: 'onReconnectError',
+    reconnect_failed: 'onReconnectFailed',
+  };
+  const managerMethods = [
+    'reconnection',
+    'reconnectionAttempts',
+    'reconnectionDelay',
+    'reconnectionDelayMax',
+    'timeout',
+  ];
+  const reservedProps = new Set([
+    'url',
+    'options',
+    'children',
+    'closeOnUnmount',
+    'dispatch',
+    'io',
+    'defaults',
+    'onMount',
+    'onDismount',
+    'onMessage',
+    'onConnectTimeout',
+    'onReconnecting',
+    ...Object.values(socketEvents),
+    ...Object.values(managerEvents),
+  ]);
 
-      var factoryOpts = {
-        url: url,
-        options: options,
-        withRef: withRef,
-        methodName: alias,
-        getDisplayName: function () { return (alias + "(" + displayName + ")"); },
-      };
+  function withSocket(url, options) {
+    const optionsOnly = url !== null && typeof url === 'object';
+    const factoryUrl = optionsOnly ? undefined : url;
+    const factoryOptions = optionsOnly ? url : options;
 
-      var socket;
+    return function withSocketConnection(WrappedComponent, config = {}) {
+      const { alias = 'WithSocket', withRef = false } = config;
 
-      var queue = [];
-
-      var Socket = (function (superclass) {
-        function Socket(props) {
-          superclass.call(this, props);
-
+      class Socket extends React.PureComponent {
+        constructor(props) {
+          super(props);
           this.state = {
             id: undefined,
             uri: undefined,
@@ -356,347 +412,241 @@
             readyState: undefined,
             connected: false,
           };
+          this.client = null;
+          this.queue = [];
+          this.listeners = [];
+          this.userListeners = [];
+          this.api = {};
+          for (const method of [
+            'open',
+            'close',
+            'connect',
+            'disconnect',
+            'on',
+            'once',
+            'off',
+            'emit',
+            'send',
+            'compress',
+          ]) {
+            this.api[method] = (...args) => {
+              this.perform(method, args);
+              return this.socket;
+            };
+          }
+          for (const method of managerMethods) {
+            this.api[method] = value => {
+              if (value === undefined) return this.client?.io[method]();
+              this.perform(method, [value]);
+              return this.socket;
+            };
+          }
+          this.setWrappedInstance = instance => {
+            this.wrappedInstance = instance;
+          };
+        }
 
-          this.setWrappedInstance = this.setWrappedInstance.bind(this);
-          this.onConnect = this.onConnect.bind(this);
-          this.onDisconnect = this.onDisconnect.bind(this);
-          this.onMessage = this.onMessage.bind(this);
-          this.onError = this.onError.bind(this);
-
-          Object.defineProperties(this, {
-            socket: {
-              get: function get() {
-                return this.createInterface();
-              },
-            },
+        get socket() {
+          return Object.freeze({
+            ...(this.client ? this.snapshot() : this.state),
+            ...this.api,
+            io: this.props.io,
           });
         }
 
-        if ( superclass ) Socket.__proto__ = superclass;
-        Socket.prototype = Object.create( superclass && superclass.prototype );
-        Socket.prototype.constructor = Socket;
-
-        Socket.prototype.componentDidUpdate = function componentDidUpdate () {
-          var this$1 = this;
-          var ref$1;
-
-          if (queue.length) {
-            while (queue.length) {
-              var ref = queue.shift();
-              var op = ref[0];
-              var args = ref.slice(1);
-              (ref$1 = this$1)[op].apply(ref$1, args);
-            }
-          }
-        };
-
-        Socket.prototype.componentDidMount = function componentDidMount () {
-          var ref = this.props;
-          var url = ref.url;
-          var options = ref.options;
-          var io = ref.io;
-          var onMount = ref.onMount;
-          var dispatch = ref.dispatch;
-
-          if (socket === undefined) { socket = io(url, options); }
-
-          socket
-            .on('message', this.onMessage)
-            .on('connect', this.onConnect)
-            .on('disconnect', this.onDisconnect)
-            .on('connect_error', this.onError)
-            .on('reconnect_error', this.onError)
-            .on('error', this.onError);
-
-          if (typeof onMount === 'function') { onMount(dispatch, this.socket); }
-        };
-
-        Socket.prototype.componentWillUnmount = function componentWillUnmount () {
-          var ref = this.props;
-          var dispatch = ref.dispatch;
-          var closeOnUnmount = ref.closeOnUnmount;
-          var onDismount = ref.onDismount;
-
-          socket
-            .off('message', this.onMessage)
-            .off('connect', this.onConnect)
-            .off('disconnect', this.onDisconnect)
-            .off('connect_error', this.onError)
-            .off('reconnect_error', this.onError)
-            .off('error', this.onError);
-
-          if (typeof onDismount === 'function') { onDismount(dispatch, this.socket); }
-
-          if (closeOnUnmount) { socket.close(); }
-        };
-
-        Socket.prototype.getWrappedInstance = function getWrappedInstance () {
+        getWrappedInstance() {
           return this.wrappedInstance;
-        };
+        }
 
-        Socket.prototype.setWrappedInstance = function setWrappedInstance (ref) {
-          this.wrappedInstance = ref;
-        };
+        componentDidMount() {
+          this.start();
+        }
 
-        Socket.prototype.update = function update (cb) {
-          var id = socket.id;
-          var nsp = socket.nsp;
-          var connected = socket.connected;
-          var io = socket.io;
-          var uri = io.uri;
-          var readyState = io.readyState;
+        componentDidUpdate(previous) {
+          if (
+            previous.io !== this.props.io ||
+            previous.url !== this.props.url
+          ) {
+            this.stop(true);
+            this.start();
+          }
+        }
 
-          this.setState(
-            {
-              id: id,
-              uri: uri,
-              nsp: nsp,
-              readyState: readyState,
-              connected: connected,
-            },
-            function () { return typeof cb === 'function' && cb(); }
+        componentWillUnmount() {
+          this.stop(this.props.closeOnUnmount ?? false);
+        }
+
+        ownProps() {
+          return Object.fromEntries(
+            Object.entries(this.props).filter(
+              ([key]) => !reservedProps.has(key),
+            ),
           );
-        };
+        }
 
-        Socket.prototype.onMessage = function onMessage () {
-          var ref;
+        snapshot() {
+          const { id, nsp, connected, io } = this.client;
+          return {
+            id,
+            nsp,
+            connected,
+            uri: io.uri,
+            readyState: connected
+              ? 'open'
+              : this.client.active
+                ? 'opening'
+                : 'closed',
+          };
+        }
 
-          var args = [], len = arguments.length;
-          while ( len-- ) args[ len ] = arguments[ len ];
-          if (this.props.onMessage) {
-            (ref = this.props).onMessage.apply(ref, args);
+        notify(name, args = []) {
+          const callback = this.props[name];
+          if (typeof callback === 'function')
+            callback(this.props.dispatch, this.socket, ...args);
+        }
+
+        listen(target, event, callback) {
+          target.on(event, callback);
+          this.listeners.push([target, event, callback]);
+        }
+
+        start() {
+          const { io, defaults } = this.props;
+          if (typeof io !== 'function') {
+            throw new Error(
+              'Pass the Socket.IO client as config.io or register reducer(io) at state.socket.',
+            );
           }
-        };
-
-        Socket.prototype.onConnect = function onConnect () {
-          var this$1 = this;
-
-          var ref = this.props;
-          var dispatch = ref.dispatch;
-
-          this.update(function () {
-            if (this$1.props.onConnect) {
-              this$1.props.onConnect(dispatch, this$1.socket);
-            }
-          });
-        };
-
-        Socket.prototype.onDisconnect = function onDisconnect (reason) {
-          var this$1 = this;
-
-          var ref = this.props;
-          var dispatch = ref.dispatch;
-
-          this.setState(function () {
-            if (this$1.props.onDisconnect) {
-              this$1.props.onDisconnect(dispatch, this$1.socket, reason);
-            }
-          });
-        };
-
-        Socket.prototype.onError = function onError (error) {
-          var ref = this.props;
-          var dispatch = ref.dispatch;
-          if (this.props.onError) {
-            this.props.onError(dispatch, this.socket, error);
+          const selected = this.props.options ?? factoryOptions;
+          const settings = {
+            ...defaults,
+            ...(typeof selected === 'function'
+              ? selected(this.ownProps())
+              : selected),
+          };
+          this.client =
+            this.retainedClient || io(this.props.url ?? factoryUrl, settings);
+          this.retainedClient = null;
+          for (const [event, name] of Object.entries(socketEvents)) {
+            this.listen(this.client, event, (...args) => {
+              this.setState(this.snapshot());
+              this.notify(name, args);
+              if (event === 'connect_error') this.notify('onError', args);
+            });
           }
-        };
-
-        Socket.prototype.createInterface = function createInterface () {
-          var ref = this;
-          var props = ref.props;
-          var state = ref.state;
-          var open = ref.open;
-          var close = ref.close;
-          var connect = ref.connect;
-          var disconnect = ref.disconnect;
-          var on = ref.on;
-          var once = ref.once;
-          var off = ref.off;
-          var emit = ref.emit;
-          var send = ref.send;
-          var compress = ref.compress;
-          var reconnection = ref.reconnection;
-          var reconnectionAttempts = ref.reconnectionAttempts;
-          var reconnectionDelay = ref.reconnectionDelay;
-          var reconnectionDelayMax = ref.reconnectionDelayMax;
-          var timeout = ref.timeout;
-
-          var io = props.io;
-
-          var _socket = Object.create(null);
-
-          Object.assign(_socket, state, {
-            open: open,
-            close: close,
-            connect: connect,
-            disconnect: disconnect,
-            on: on,
-            once: once,
-            off: off,
-            emit: emit,
-            send: send,
-            compress: compress,
-            reconnection: reconnection,
-            reconnectionAttempts: reconnectionAttempts,
-            reconnectionDelay: reconnectionDelay,
-            reconnectionDelayMax: reconnectionDelayMax,
-            timeout: timeout,
-            io: io,
-          });
-
-          Object.freeze(_socket);
-
-          return _socket;
-        };
-
-        Socket.prototype.open = function open () {
-          if (socket) { socket.open(); }
-          else { queue.push(['open']); }
-          return this;
-        };
-
-        Socket.prototype.close = function close () {
-          if (socket) { socket.close(); }
-          else { queue.push(['close']); }
-          return this;
-        };
-
-        Socket.prototype.connect = function connect () {
-          if (socket) { socket.open(); }
-          else { queue.push(['connect']); }
-          return this;
-        };
-
-        Socket.prototype.disconnect = function disconnect () {
-          if (socket) { socket.close(); }
-          else { queue.push(['disconnect']); }
-          return this;
-        };
-
-        Socket.prototype.on = function on (event, cb) {
-          if (socket) { socket.on(event, cb); }
-          else { queue.push(['on', event, cb]); }
-          return this;
-        };
-
-        Socket.prototype.once = function once (event, cb) {
-          if (socket) { socket.once(event, cb); }
-          else { queue.push(['once', event, cb]); }
-          return this;
-        };
-
-        Socket.prototype.off = function off (event, cb) {
-          if (socket) { socket.off(event, cb); }
-          else { queue.push(['off', event, cb]); }
-          return this;
-        };
-
-        Socket.prototype.emit = function emit (event) {
-          var args = [], len = arguments.length - 1;
-          while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
-
-          if (socket && socket.connected) { socket.emit.apply(socket, [ event ].concat( args )); }
-          else { queue.push(['emit', event ].concat( args)); }
-          return this;
-        };
-
-        Socket.prototype.send = function send () {
-          var ref;
-
-          var args = [], len = arguments.length;
-          while ( len-- ) args[ len ] = arguments[ len ];
-          return (ref = this).emit.apply(ref, [ 'message' ].concat( args ));
-        };
-
-        Socket.prototype.compress = function compress (value) {
-          if (socket) { socket.compress(value); }
-          else { queue.push(['compress', value]); }
-          return this;
-        };
-
-        Socket.prototype.reconnection = function reconnection (value) {
-          if (value !== undefined) {
-            socket.io.reconnection(value);
-            return this;
+          this.listen(this.client, 'message', (...args) =>
+            this.props.onMessage?.(...args),
+          );
+          for (const [event, name] of Object.entries(managerEvents)) {
+            this.listen(this.client.io, event, (...args) => {
+              this.notify(name, args);
+              if (event === 'reconnect_error') this.notify('onError', args);
+            });
           }
-          return socket.io.reconnection();
-        };
+          const pending = this.queue.splice(0);
+          for (const [method, args] of pending) this.perform(method, args);
+          if (settings.autoConnect !== false && !this.client.connected)
+            this.client.connect();
+          this.setState(this.snapshot());
+          this.notify('onMount');
+        }
 
-        Socket.prototype.reconnectionAttempts = function reconnectionAttempts (value) {
-          if (value !== undefined) {
-            socket.io.reconnectionAttempts(value);
-            return this;
+        stop(close) {
+          if (!this.client) {
+            this.queue = [];
+            return;
           }
-          return socket.io.reconnectionAttempts();
-        };
-
-        Socket.prototype.reconnectionDelay = function reconnectionDelay (value) {
-          if (value !== undefined) {
-            socket.io.reconnectionDelay(value);
-            return this;
+          try {
+            this.notify('onDismount');
+          } finally {
+            for (const [target, event, callback] of this.listeners)
+              target.off(event, callback);
+            this.listeners = [];
+            for (const { event, listener } of this.userListeners)
+              this.client.off(event, listener);
+            this.userListeners = [];
+            if (close) this.client.disconnect();
+            else this.retainedClient = this.client;
+            this.client = null;
+            this.queue = [];
           }
-          return socket.io.reconnectionDelay();
-        };
+        }
 
-        Socket.prototype.reconnectionDelayMax = function reconnectionDelayMax (value) {
-          if (value !== undefined) {
-            socket.io.reconnectionDelayMax(value);
-            return this;
+        perform(method, args) {
+          if (!this.client) {
+            this.queue.push([method, args]);
+            return;
           }
-          return socket.io.reconnectionDelayMax();
-        };
-
-        Socket.prototype.timeout = function timeout (value) {
-          if (value !== undefined) {
-            socket.io.timeout(value);
-            return this;
+          if (method === 'on' || method === 'once') {
+            const [event, callback] = args;
+            const entry = { event, callback };
+            entry.listener = (...data) => {
+              if (method === 'once') {
+                this.client.off(event, entry.listener);
+                this.userListeners = this.userListeners.filter(
+                  item => item !== entry,
+                );
+              }
+              callback(...data);
+            };
+            this.userListeners.push(entry);
+            this.client.on(event, entry.listener);
+          } else if (method === 'off') {
+            const [event, callback] = args;
+            this.userListeners = this.userListeners.filter(entry => {
+              if (
+                (event === undefined || entry.event === event) &&
+                (callback === undefined || entry.callback === callback)
+              ) {
+                this.client.off(entry.event, entry.listener);
+                return false;
+              }
+              return true;
+            });
+          } else if (managerMethods.includes(method)) {
+            this.client.io[method](...args);
+          } else if (method === 'send') {
+            this.client.emit('message', ...args);
+          } else {
+            this.client[method](...args);
           }
-          return socket.io.timeout();
-        };
+        }
 
-        Socket.prototype.render = function render () {
-          var ref = this.props;
-          var ownProps = ref.ownProps;
-
-          var payload = Object.assign({}, ownProps, {socket: this.createInterface()});
-
+        render() {
+          const payload = { ...this.ownProps(), socket: this.socket };
           if (WrappedComponent) {
-            if (withRef) { payload.ref = this.setWrappedInstance; }
-
+            payload.children = this.props.children;
+            if (withRef) payload.ref = this.setWrappedInstance;
             return React.createElement(WrappedComponent, payload);
           }
+          return typeof this.props.children === 'function'
+            ? this.props.children(payload)
+            : React.cloneElement(
+                React.Children.only(this.props.children),
+                payload,
+              );
+        }
+      }
 
-          var ref$1 = this.props;
-          var children = ref$1.children;
-
-          return typeof children === 'function'
-            ? children(payload)
-            : React.cloneElement(children, payload);
-        };
-
-        return Socket;
-      }(React.PureComponent));
-
-      var connection = reactRedux.connectAdvanced(socketConnection, factoryOpts);
-
-      var SocketWrapper = connection(Socket);
-
-      var WithSocket = WrappedComponent
+      const displayName =
+        WrappedComponent?.displayName || WrappedComponent?.name || 'Component';
+      Socket.displayName = `${alias}(${displayName})`;
+      const SocketWrapper = reactRedux.connect(
+        state => ({
+          io: config.io ?? state.socket?.io,
+          defaults: config.defaults ?? state.socket?.defaults,
+        }),
+        null,
+        null,
+        { forwardRef: withRef },
+      )(Socket);
+      SocketWrapper.displayName = Socket.displayName;
+      return WrappedComponent
         ? hoistNonReactStatics(SocketWrapper, WrappedComponent)
         : SocketWrapper;
-
-      WithSocket.propTypes = propTypes;
-
-      WithSocket.defaultProps = defaultProps;
-
-      return WithSocket;
     };
   }
 
   exports.reducer = reducer;
   exports.withSocket = withSocket;
-
-  Object.defineProperty(exports, '__esModule', { value: true });
-
-})));
+});

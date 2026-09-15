@@ -1,0 +1,65 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test and build
+        run: npm run check
+      - name: Pack the tested build
+        run: |
+          mkdir -p artifact
+          npm pack --ignore-scripts --pack-destination artifact
+          mv artifact/*.tgz artifact/package.tgz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: artifact/package.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+          path: artifact
+      - name: Unpack the built package
+        run: tar -xzf artifact/package.tgz
+      - name: Publish when a token is available
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_DIST_TAG: ${{ github.event.release.prerelease && 'next' || 'latest' }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN is not configured; skipping publication." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npm publish ./package --ignore-scripts --access public --tag "$NPM_DIST_TAG" --registry https://registry.npmjs.org
