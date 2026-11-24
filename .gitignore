@@ -10,3 +10,7 @@ snippets/
 /examples/dist/
 /test-results/
 /playwright-report/
+
+# Local agent skills
+/.agents/skills
+/.claude/skills
